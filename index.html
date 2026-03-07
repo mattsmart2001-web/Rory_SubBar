@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sub Bar Overlay</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 1280px;
+      height: 110px;
+      overflow: hidden;
+      background: transparent;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .overlay {
+      width: 1280px;
+      height: 110px;
+      background: #2d3f6e;
+      border-radius: 10px;
+      padding: 0 14px 4px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Row 1: indicator floats here ── */
+    .indicator-row {
+      flex: 0 0 48px;
+      position: relative;
+    }
+
+    .indicator {
+      position: absolute;
+      bottom: 2px;
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .sub-count-box {
+      background: #182848;
+      border: 2.5px solid #5888ee;
+      border-radius: 7px;
+      padding: 4px 14px;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: #fff;
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+    }
+
+    .profile-pic {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    /* ── Row 2: segmented progress bar ── */
+    .bar-row {
+      flex: 0 0 36px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .milestone {
+      color: #fff;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      min-width: 42px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 36px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 3px;
+    }
+
+    /* Unfilled dark segments */
+    .bar-track::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        90deg,
+        #3a4d7c 0px, #3a4d7c 17px,
+        #222c55 17px, #222c55 19px
+      );
+    }
+
+    /* Filled cyan segments */
+    .bar-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: repeating-linear-gradient(
+        90deg,
+        #5ee8fc 0px, #5ee8fc 17px,
+        #26c5dc 17px, #26c5dc 19px
+      );
+      transition: width 0.6s ease;
+    }
+
+    /* ── Row 3: info row ── */
+    .info-row {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 2px 52px 0;
+    }
+
+    .date-text {
+      color: #7aaeff;
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.3;
+      min-width: 40px;
+    }
+
+    .goal-text {
+      flex: 1;
+      text-align: center;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 900;
+      color: #f0e040;
+      letter-spacing: 0.5px;
+    }
+
+    .goal-text .num { font-size: 17px; }
+  </style>
+</head>
+<body>
+<div class="overlay">
+
+  <div class="indicator-row" id="indicatorRow">
+    <div class="indicator" id="indicator">
+      <div class="sub-count-box" id="subCountBox"></div>
+      <img class="profile-pic" id="profilePic" src="" alt="streamer">
+    </div>
+  </div>
+
+  <div class="bar-row" id="barRow">
+    <span class="milestone" id="startLabel"></span>
+    <div class="bar-track" id="barTrack">
+      <div class="bar-fill" id="barFill" style="width:0"></div>
+    </div>
+    <span class="milestone" id="endLabel"></span>
+  </div>
+
+  <div class="info-row">
+    <div class="date-text" id="dateText"></div>
+    <div class="goal-text">
+      <span class="num" id="subsNeeded"></span> more subs to <span id="nextMilestoneText"></span>!
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ================================================================
+//  CONFIGURATION  —  edit these values
+// ================================================================
+const CONFIG = {
+  // ── Static fallback (used when YouTube API is not configured) ──
+  currentSubs:    324582,       // Current sub count (manual fallback)
+  startMilestone: 300000,       // Left end of bar  (e.g. 300000)
+  endMilestone:   400000,       // Right end of bar (e.g. 400000)
+  nextMilestone:  325000,       // Next milestone to hit
+  profilePicUrl:  'profile.jpg',// Path to your headshot image (local or URL)
+  date:           '08/10/2025', // Shown bottom-left  (MM/DD/YYYY)
+
+  // ── YouTube Data API v3 (optional — enables live sub count) ────
+  // Get a key at: https://console.cloud.google.com → YouTube Data API v3
+  youtubeChannelId: '',         // e.g.  'UCxxxxxxxxxxxxxxxxxxxxxx'
+  youtubeApiKey:    '',         // Your API key
+  refreshSeconds:   60,         // How often to pull a fresh count
+};
+// ================================================================
+
+const fmt  = n => Math.round(n).toLocaleString('en-US');
+const fmtK = n => {
+  if (n >= 1e6) return (n / 1e6) + 'M';
+  if (n >= 1e3) return (n / 1e3) + 'K';
+  return String(n);
+};
+
+function positionIndicator(pct) {
+  const indicatorRow = document.getElementById('indicatorRow');
+  const barTrack     = document.getElementById('barTrack');
+  const indicator    = document.getElementById('indicator');
+
+  const rowRect   = indicatorRow.getBoundingClientRect();
+  const trackRect = barTrack.getBoundingClientRect();
+
+  const trackLeftInRow = trackRect.left - rowRect.left;
+  const fillEndX       = trackLeftInRow + trackRect.width * pct;
+  const indW           = indicator.offsetWidth;
+
+  let left = fillEndX - indW;
+  left = Math.max(0, Math.min(left, rowRect.width - indW));
+  indicator.style.left = left + 'px';
+}
+
+function updateUI(subs) {
+  const { startMilestone, endMilestone, nextMilestone } = CONFIG;
+  const pct = Math.max(0, Math.min(1,
+    (subs - startMilestone) / (endMilestone - startMilestone)));
+
+  document.getElementById('barFill').style.width           = (pct * 100) + '%';
+  document.getElementById('subCountBox').textContent       = fmt(subs);
+  document.getElementById('subsNeeded').textContent        = fmt(Math.max(0, nextMilestone - subs));
+  document.getElementById('nextMilestoneText').textContent = fmt(nextMilestone);
+  document.getElementById('startLabel').textContent        = fmtK(startMilestone);
+  document.getElementById('endLabel').textContent          = fmtK(endMilestone);
+  document.getElementById('profilePic').src                = CONFIG.profilePicUrl;
+
+  // Date: "08/10/2025" → "08/10<br>2025"
+  const m = CONFIG.date.match(/^(\d{1,2}\/\d{1,2})\/?(\d{4})$/);
+  document.getElementById('dateText').innerHTML = m ? `${m[1]}<br>${m[2]}` : CONFIG.date;
+
+  requestAnimationFrame(() => positionIndicator(pct));
+}
+
+async function fetchYouTubeSubs() {
+  const { youtubeChannelId, youtubeApiKey } = CONFIG;
+  try {
+    const url  = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${youtubeChannelId}&key=${youtubeApiKey}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    return parseInt(data.items[0].statistics.subscriberCount, 10);
+  } catch (e) {
+    console.warn('YouTube fetch failed:', e);
+    return null;
+  }
+}
+
+async function refresh() {
+  let subs = CONFIG.currentSubs;
+  if (CONFIG.youtubeChannelId && CONFIG.youtubeApiKey) {
+    const live = await fetchYouTubeSubs();
+    if (live !== null) subs = live;
+  }
+  updateUI(subs);
+}
+
+window.addEventListener('load', () => {
+  refresh();
+  if (CONFIG.youtubeChannelId && CONFIG.youtubeApiKey) {
+    setInterval(refresh, CONFIG.refreshSeconds * 1000);
+  }
+});
+</script>
+</body>
+</html>
