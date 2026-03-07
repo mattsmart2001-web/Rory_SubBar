@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Auto-update README config table from index.html before each commit.
+# Install once with:  git config core.hooksPath .githooks
+
+set -e
+
+if command -v node &>/dev/null; then
+  node scripts/update-readme.js
+  git add README.md
+else
+  echo "update-readme: node not found, skipping README sync"
+fi
