@@ -346,7 +346,7 @@
 
     <!-- Row 4: OAuth credentials -->
     <div class="field field-span2">
-      <label>OAuth Client ID — for EXACT count (see README)</label>
+      <label>OAuth Client ID — live updates, approx ±100 (see README)</label>
       <input id="c-clientid" type="text" placeholder="000000000000-xxxxxxxx.apps.googleusercontent.com">
     </div>
     <div class="field">
@@ -362,7 +362,7 @@
 
     <!-- Row 5: Refresh token (paste from OAuth Playground) -->
     <div class="field field-span3">
-      <label>Refresh Token — get from OAuth Playground with youtube.readonly scope (see README)</label>
+      <label>Refresh Token — from OAuth Playground (see README). Set exact count manually above.</label>
       <input id="c-refreshtoken" type="password" placeholder="1//0g… paste here">
     </div>
     <div class="field actions-cell">
@@ -513,7 +513,7 @@ async function getAccessToken() {
 
 // ── YouTube fetch ────────────────────────────────────────────────
 async function fetchYouTubeSubs() {
-  // 1. Prefer OAuth — Data API with mine=true returns exact count for channel owner
+  // 1. Prefer OAuth — triggers authenticated request (still approximate ±100 for large channels)
   const token = await getAccessToken();
   if (token) {
     try {
@@ -566,16 +566,15 @@ async function refresh() {
     setStatus('loading', 'Fetching…');
     const live = await fetchYouTubeSubs();
     if (live !== null) {
-      // With OAuth: exact — use directly.
-      // With API key only: rounded — never go below manual count.
-      subs = hasOAuth ? live : Math.max(live, CONFIG.currentSubs);
+      // API always rounds for large channels — never go below the known manual count.
+      subs = Math.max(live, CONFIG.currentSubs);
       if (subs > CONFIG.currentSubs) {
         CONFIG.currentSubs = subs;
         saveConfig();
         const el = document.getElementById('c-subs');
         if (el) el.value = subs;
       }
-      setStatus('live', `Live · ${fmt(subs)}${hasOAuth ? '' : ' (approx)'}`);
+      setStatus('live', `Live · ${fmt(subs)} (approx)`);
     } else {
       setStatus('error', 'Fetch Error');
     }
