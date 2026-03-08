@@ -361,6 +361,7 @@
         <button class="btn-action btn-disconnect" id="btnClearSE">✕ Clear SE</button>
         <span class="status auth-off" id="seBadge">● Not connected</span>
         <button class="btn-action" id="btnRefresh">↻ Refresh</button>
+        <button class="btn-action" id="btnTestNotif">🔔 Test Notif</button>
       </div>
     </div>
 
@@ -577,6 +578,18 @@ function initConsole() {
   });
 
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
+
+  const testMessages = [
+    'RoryPlays has just subscribed!',
+    'xXSniper99Xx has resubscribed for 6 months!',
+    'GiftKing gifted a sub to LuckyViewer!',
+    'MegaFan gifted 5 subs to the community!',
+  ];
+  let testIdx = 0;
+  document.getElementById('btnTestNotif')?.addEventListener('click', () => {
+    showNotif(testMessages[testIdx % testMessages.length]);
+    testIdx++;
+  });
 
   if (CONFIG.streamElementsJwt) setSeBadge('auth-on');
 }
