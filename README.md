@@ -37,6 +37,9 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 | `profilePicUrl` | `'profile.jpg'` | Local filename or URL |
 | `youtubeChannelId` | `''` | Channel ID for approximate API-key count |
 | `youtubeApiKey` | `''` | YouTube Data API v3 key (approximate ±100) |
+| `oauthClientId` | `''` | OAuth Client ID for exact count |
+| `oauthClientSecret` | `''` | OAuth Client Secret |
+| `oauthRefreshToken` | `''` | Stored after first auth — keep private |
 | `refreshSeconds` | `60` | How often to poll YouTube |
 <!-- CONFIG_TABLE_END -->
 
