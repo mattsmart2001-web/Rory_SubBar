@@ -703,10 +703,10 @@ function disconnectOAuth() {
 async function fetchYouTubeSubs() {
   // 1. Prefer OAuth — authenticated channel owner gets exact (unrounded) count
   const token = await getAccessToken();
-  if (token && CONFIG.youtubeChannelId) {
+  if (token) {
     try {
       const res  = await fetch(
-        `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${CONFIG.youtubeChannelId}`,
+        'https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true',
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
