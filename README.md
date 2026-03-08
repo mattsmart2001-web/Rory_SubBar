@@ -35,6 +35,8 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 | `nextMilestone` | `35000` | Next milestone label |
 | `profilePicUrl` | `'profile.jpg'` | Local filename or URL |
 | `barColor` | `'#5ee8fc'` | Bar fill colour |
+| `trackColor` | `'#2c3d5e'` | Unfilled slot colour |
+| `pillColor` | `'#2d3f6e'` | Background pill colour |
 | `streamElementsJwt` | `''` | SE JWT — positions the bar |
 | `refreshSeconds` | `60` | Auto-refresh interval |
 <!-- CONFIG_TABLE_END -->
