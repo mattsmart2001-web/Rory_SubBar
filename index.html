@@ -372,6 +372,16 @@ const fmtK = n => {
   return String(n);
 };
 
+// Returns the next sensible round-number milestone above n
+function nextRoundNumber(n) {
+  let step;
+  if      (n <    10000) step =   500;
+  else if (n <   100000) step =  1000;
+  else if (n <  1000000) step =  5000;
+  else                   step = 50000;
+  return Math.ceil((n + 1) / step) * step;
+}
+
 // ── Persistence ─────────────────────────────────────────────────
 function loadSaved() {
   try {
@@ -411,6 +421,14 @@ function positionIndicator(pct) {
 }
 
 function updateUI(subs) {
+  // Auto-advance nextMilestone if the current count has already passed it
+  if (subs >= CONFIG.nextMilestone) {
+    CONFIG.nextMilestone = nextRoundNumber(subs);
+    saveConfig();
+    const el = document.getElementById('c-next');
+    if (el) el.value = CONFIG.nextMilestone;
+  }
+
   const { startMilestone, endMilestone, nextMilestone } = CONFIG;
   const pct = Math.max(0, Math.min(1,
     (subs - startMilestone) / (endMilestone - startMilestone)));
@@ -458,8 +476,10 @@ async function refresh() {
     setStatus('loading', 'Fetching…');
     const live = await fetchYouTubeSubs();
     if (live !== null) {
-      subs = live;
-      setStatus('live', `Live · ${fmt(live)}`);
+      // YouTube API rounds to 3 significant figures — never let it go below
+      // the manually entered count (which the user knows is exact)
+      subs = Math.max(live, CONFIG.currentSubs);
+      setStatus('live', `Live · ${fmt(subs)}`);
     } else {
       setStatus('error', 'API Error');
     }
