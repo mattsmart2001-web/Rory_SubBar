@@ -658,6 +658,12 @@ async function startOAuthFlow() {
     return;
   }
 
+  if (deviceData.error) {
+    alert(`Google rejected the auth request:\n\n${deviceData.error}: ${deviceData.error_description || ''}\n\nMake sure the YouTube Analytics API is enabled in Google Cloud Console and the scope is added to your OAuth consent screen.`);
+    setAuthBadge('auth-off');
+    return;
+  }
+
   // Show the prompt
   document.getElementById('authUrl').textContent  = deviceData.verification_url;
   document.getElementById('authCode').textContent = deviceData.user_code;
