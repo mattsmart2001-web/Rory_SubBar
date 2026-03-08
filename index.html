@@ -706,7 +706,7 @@ async function fetchYouTubeSubs() {
   if (token && CONFIG.youtubeChannelId) {
     try {
       const res  = await fetch(
-        `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${CONFIG.youtubeChannelId}&key=${CONFIG.youtubeApiKey}`,
+        `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${CONFIG.youtubeChannelId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
