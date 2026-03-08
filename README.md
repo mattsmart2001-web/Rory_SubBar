@@ -30,13 +30,12 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 <!-- CONFIG_TABLE_START -->
 | Key | Default | Description |
 |-----|---------|-------------|
-| `currentSubs` | `34686` | Manual sub count (exact fallback) |
 | `startMilestone` | `30000` | Left end of bar |
 | `endMilestone` | `40000` | Right end of bar |
-| `nextMilestone` | `35000` | Next milestone to reach |
+| `nextMilestone` | `35000` | Next milestone label |
+| `barFill` | `0` | Bar fill % (0–100) |
 | `profilePicUrl` | `'profile.jpg'` | Local filename or URL |
-| `streamElementsJwt` | `''` | StreamElements JWT — gives exact count |
-| `refreshSeconds` | `60` | How often to poll YouTube |
+| `barColor` | `'#5ee8fc'` | Bar fill colour |
 <!-- CONFIG_TABLE_END -->
 
 ## Getting an Exact Sub Count (OAuth — recommended)
