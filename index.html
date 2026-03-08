@@ -640,7 +640,7 @@ function initConsole() {
 function updateStaticSubDisplay() {
   const el = document.getElementById('staticSubCount');
   if (!el) return;
-  el.textContent = CONFIG.staticSubCount ? fmtK(CONFIG.staticSubCount) : '—';
+  el.textContent = '';
 }
 
 // ── Notification queue ───────────────────────────────────────────
