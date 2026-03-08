@@ -315,7 +315,7 @@
       <input id="c-subs" type="number" placeholder="34686">
     </div>
 
-    <!-- Row 2: visual settings -->
+    <!-- Row 2: visual settings + actions -->
     <div class="field field-span2">
       <label>Profile Pic — local filename or full URL</label>
       <input id="c-pic" type="text" placeholder="profile.jpg  or  https://…">
@@ -323,16 +323,6 @@
     <div class="field">
       <label>Auto-refresh (seconds)</label>
       <input id="c-refresh" type="number" placeholder="60" min="10">
-    </div>
-
-    <!-- Row 3: API key (approximate, no auth required) -->
-    <div class="field field-span2">
-      <label>YouTube Channel ID — for approximate count (API key)</label>
-      <input id="c-channel" type="text" placeholder="UCxxxxxxxxxxxxxxxxxxxxx">
-    </div>
-    <div class="field">
-      <label>YouTube API Key (approximate ±100)</label>
-      <input id="c-apikey" type="password" placeholder="AIza…">
     </div>
     <div class="field actions-cell">
       <label>​</label>
@@ -344,39 +334,9 @@
 
     <hr class="console-divider">
 
-    <!-- Row 4: OAuth credentials -->
-    <div class="field field-span2">
-      <label>OAuth Client ID — live updates, approx ±100 (see README)</label>
-      <input id="c-clientid" type="text" placeholder="000000000000-xxxxxxxx.apps.googleusercontent.com">
-    </div>
-    <div class="field">
-      <label>OAuth Client Secret</label>
-      <input id="c-clientsecret" type="password" placeholder="GOCSPX-…">
-    </div>
-    <div class="field actions-cell">
-      <label>​</label>
-      <div class="console-actions">
-        <span class="status auth-off" id="authBadge">● No token</span>
-      </div>
-    </div>
-
-    <!-- Row 5: Refresh token (paste from OAuth Playground) -->
-    <div class="field field-span3">
-      <label>Refresh Token — from OAuth Playground (see README). Set exact count manually above.</label>
-      <input id="c-refreshtoken" type="password" placeholder="1//0g… paste here">
-    </div>
-    <div class="field actions-cell">
-      <label>​</label>
-      <div class="console-actions">
-        <button class="btn-action btn-disconnect" id="btnClearToken">✕ Clear</button>
-      </div>
-    </div>
-
-    <hr class="console-divider">
-
     <!-- Row 6: StreamElements JWT (exact count) -->
     <div class="field field-span3">
-      <label>StreamElements JWT — EXACT count (streamelements.com → Account → App Access Token)</label>
+      <label>StreamElements JWT — EXACT count (streamelements.com → profile → Show Secrets)</label>
       <input id="c-se-jwt" type="password" placeholder="eyJ…">
     </div>
     <div class="field actions-cell">
@@ -401,19 +361,11 @@ const DEFAULTS = {
   endMilestone:     40000,       // Right end of bar
   nextMilestone:    35000,       // Next milestone to reach
   profilePicUrl:    'profile.jpg', // Local filename or URL
-  youtubeChannelId: '',           // Channel ID for approximate API-key count
-  youtubeApiKey:    '',           // YouTube Data API v3 key (approximate ±100)
-  oauthClientId:    '',           // OAuth Client ID for approximate count
-  oauthClientSecret: '',          // OAuth Client Secret
-  oauthRefreshToken: '',          // Stored after first auth — keep private
   streamElementsJwt: '',          // StreamElements JWT — gives exact count
   refreshSeconds:   60,           // How often to poll YouTube
 };
 
 const CONFIG = Object.assign({}, DEFAULTS);
-
-// Transient OAuth state (not persisted — refreshed each session)
-const oauth = { accessToken: '', expiresAt: 0 };
 
 // ================================================================
 
@@ -448,13 +400,6 @@ function saveConfig() {
 function setStatus(state, text) {
   const el = document.getElementById('statusBadge');
   if (el) { el.className = 'status ' + state; el.textContent = '● ' + text; }
-}
-
-function setAuthBadge(state) {
-  const el = document.getElementById('authBadge');
-  if (!el) return;
-  el.className   = 'status ' + state;
-  el.textContent = state === 'auth-on' ? '● Token active ✓' : '● No token';
 }
 
 function setSeBadge(state) {
@@ -500,74 +445,6 @@ function updateUI(subs) {
   requestAnimationFrame(() => positionIndicator(pct));
 }
 
-// ── OAuth ─────────────────────────────────────────────────────────
-async function getAccessToken() {
-  if (!CONFIG.oauthRefreshToken || !CONFIG.oauthClientId) return null;
-
-  if (oauth.accessToken && oauth.expiresAt > Date.now() + 60_000) {
-    return oauth.accessToken;
-  }
-
-  try {
-    const res = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     CONFIG.oauthClientId,
-        client_secret: CONFIG.oauthClientSecret,
-        refresh_token: CONFIG.oauthRefreshToken,
-        grant_type:    'refresh_token',
-      }),
-    });
-    const data = await res.json();
-    if (data.access_token) {
-      oauth.accessToken = data.access_token;
-      oauth.expiresAt   = Date.now() + data.expires_in * 1000;
-      return oauth.accessToken;
-    }
-    CONFIG.oauthRefreshToken = '';
-    saveConfig();
-    setAuthBadge('auth-off');
-  } catch (e) {
-    console.warn('Token refresh failed:', e);
-  }
-  return null;
-}
-
-// ── YouTube fetch ────────────────────────────────────────────────
-async function fetchYouTubeSubs() {
-  // 1. Prefer OAuth — triggers authenticated request (still approximate ±100 for large channels)
-  const token = await getAccessToken();
-  if (token) {
-    try {
-      const res  = await fetch(
-        'https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const data = await res.json();
-      if (data.items?.[0]?.statistics?.subscriberCount != null) {
-        return parseInt(data.items[0].statistics.subscriberCount, 10);
-      }
-    } catch (e) {
-      console.warn('OAuth fetch failed:', e);
-    }
-  }
-
-  // 2. Fall back to API key (rounds to 3 significant figures)
-  const { youtubeChannelId, youtubeApiKey } = CONFIG;
-  if (!youtubeChannelId || !youtubeApiKey) return null;
-  try {
-    const res  = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${youtubeChannelId}&key=${youtubeApiKey}`
-    );
-    const data = await res.json();
-    return parseInt(data.items[0].statistics.subscriberCount, 10);
-  } catch (e) {
-    console.warn('API key fetch failed:', e);
-    return null;
-  }
-}
-
 // ── StreamElements fetch (exact count) ───────────────────────────
 async function fetchStreamElementsSubs() {
   if (!CONFIG.streamElementsJwt) return null;
@@ -596,54 +473,24 @@ let refreshTimer = null;
 
 function startRefreshTimer() {
   if (refreshTimer) clearInterval(refreshTimer);
-  const hasSE     = !!CONFIG.streamElementsJwt;
-  const hasOAuth  = CONFIG.oauthRefreshToken && CONFIG.oauthClientId;
-  const hasApiKey = CONFIG.youtubeChannelId  && CONFIG.youtubeApiKey;
-  if (hasSE || hasOAuth || hasApiKey) {
+  if (CONFIG.streamElementsJwt) {
     refreshTimer = setInterval(refresh, Math.max(10, CONFIG.refreshSeconds) * 1000);
   }
 }
 
 async function refresh() {
-  const hasSE     = !!CONFIG.streamElementsJwt;
-  const hasOAuth  = CONFIG.oauthRefreshToken && CONFIG.oauthClientId;
-  const hasApiKey = CONFIG.youtubeChannelId  && CONFIG.youtubeApiKey;
-
   let subs = CONFIG.currentSubs;
 
-  if (hasSE || hasOAuth || hasApiKey) {
+  if (CONFIG.streamElementsJwt) {
     setStatus('loading', 'Fetching…');
-    let live  = null;
-    let exact = false;
-
-    if (hasSE) {
-      live  = await fetchStreamElementsSubs();
-      exact = live !== null;
-    }
-    if (live === null && (hasOAuth || hasApiKey)) {
-      live = await fetchYouTubeSubs();
-    }
-
+    const live = await fetchStreamElementsSubs();
     if (live !== null) {
-      if (exact) {
-        // StreamElements: exact — update directly (can go up or down)
-        subs = live;
-        CONFIG.currentSubs = subs;
-        saveConfig();
-        const el = document.getElementById('c-subs');
-        if (el) el.value = subs;
-        setStatus('live', `Live · ${fmt(subs)}`);
-      } else {
-        // YouTube API: approximate — never go below manual count
-        subs = Math.max(live, CONFIG.currentSubs);
-        if (subs > CONFIG.currentSubs) {
-          CONFIG.currentSubs = subs;
-          saveConfig();
-          const el = document.getElementById('c-subs');
-          if (el) el.value = subs;
-        }
-        setStatus('live', `Live · ${fmt(subs)} (approx)`);
-      }
+      subs = live;
+      CONFIG.currentSubs = subs;
+      saveConfig();
+      const el = document.getElementById('c-subs');
+      if (el) el.value = subs;
+      setStatus('live', `Live · ${fmt(subs)}`);
     } else {
       setStatus('error', 'Fetch Error');
     }
@@ -656,16 +503,12 @@ async function refresh() {
 // ── Console wiring ───────────────────────────────────────────────
 function initConsole() {
   const bindings = [
-    { id: 'c-start',        key: 'startMilestone',   parse: Number },
-    { id: 'c-end',          key: 'endMilestone',     parse: Number },
-    { id: 'c-next',         key: 'nextMilestone',    parse: Number },
-    { id: 'c-subs',         key: 'currentSubs',      parse: Number },
-    { id: 'c-pic',          key: 'profilePicUrl',    parse: String },
-    { id: 'c-refresh',      key: 'refreshSeconds',   parse: Number },
-    { id: 'c-channel',      key: 'youtubeChannelId', parse: String },
-    { id: 'c-apikey',       key: 'youtubeApiKey',    parse: String },
-    { id: 'c-clientid',     key: 'oauthClientId',    parse: String },
-    { id: 'c-clientsecret', key: 'oauthClientSecret',parse: String },
+    { id: 'c-start',   key: 'startMilestone', parse: Number },
+    { id: 'c-end',     key: 'endMilestone',   parse: Number },
+    { id: 'c-next',    key: 'nextMilestone',  parse: Number },
+    { id: 'c-subs',    key: 'currentSubs',    parse: Number },
+    { id: 'c-pic',     key: 'profilePicUrl',  parse: String },
+    { id: 'c-refresh', key: 'refreshSeconds', parse: Number },
   ];
 
   for (const { id, key, parse } of bindings) {
@@ -681,33 +524,7 @@ function initConsole() {
     });
   }
 
-  // Refresh token field — wired separately to also update the auth badge
-  const rtEl = document.getElementById('c-refreshtoken');
-  if (rtEl) {
-    rtEl.value = CONFIG.oauthRefreshToken;
-    rtEl.addEventListener('input', () => {
-      CONFIG.oauthRefreshToken = rtEl.value.trim();
-      saveConfig();
-      setAuthBadge(CONFIG.oauthRefreshToken ? 'auth-on' : 'auth-off');
-      startRefreshTimer();
-      refresh();
-    });
-  }
-
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
-
-  document.getElementById('btnClearToken')?.addEventListener('click', () => {
-    oauth.accessToken = '';
-    oauth.expiresAt   = 0;
-    CONFIG.oauthRefreshToken = '';
-    saveConfig();
-    if (rtEl) rtEl.value = '';
-    setAuthBadge('auth-off');
-    setStatus('manual', 'Manual');
-    startRefreshTimer();
-  });
-
-  if (CONFIG.oauthRefreshToken) setAuthBadge('auth-on');
 
   // StreamElements JWT
   const seEl = document.getElementById('c-se-jwt');
