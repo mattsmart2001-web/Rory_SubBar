@@ -624,7 +624,7 @@ async function startOAuthFlow() {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         client_id: CONFIG.oauthClientId,
-        scope: 'https://www.googleapis.com/auth/yt-analytics.readonly',
+        scope: 'https://www.googleapis.com/auth/youtube.readonly',
       }),
     });
     deviceData = await res.json();
@@ -701,21 +701,20 @@ function disconnectOAuth() {
 
 // ── YouTube fetch ────────────────────────────────────────────────
 async function fetchYouTubeSubs() {
-  // 1. Prefer OAuth — exact count via YouTube Analytics API
+  // 1. Prefer OAuth — authenticated channel owner gets exact (unrounded) count
   const token = await getAccessToken();
-  if (token) {
+  if (token && CONFIG.youtubeChannelId) {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const res   = await fetch(
-        `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${today}&endDate=${today}&metrics=subscriberCount`,
+      const res  = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${CONFIG.youtubeChannelId}&key=${CONFIG.youtubeApiKey}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
-      if (data.rows?.[0]?.[0] != null) {
-        return parseInt(data.rows[0][0], 10);
+      if (data.items?.[0]?.statistics?.subscriberCount != null) {
+        return parseInt(data.items[0].statistics.subscriberCount, 10);
       }
     } catch (e) {
-      console.warn('OAuth Analytics fetch failed:', e);
+      console.warn('OAuth fetch failed:', e);
     }
   }
 
