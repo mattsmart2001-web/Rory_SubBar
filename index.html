@@ -722,12 +722,13 @@ function disconnectOAuth() {
 
 // ── YouTube fetch ────────────────────────────────────────────────
 async function fetchYouTubeSubs() {
-  // 1. Prefer OAuth — returns exact count as channel owner
+  // 1. Prefer OAuth — query by channel ID so we always get the right channel.
+  //    The Bearer token proves ownership, so YouTube returns the exact count.
   const token = await getAccessToken();
-  if (token) {
+  if (token && CONFIG.youtubeChannelId) {
     try {
       const res  = await fetch(
-        'https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true',
+        `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${CONFIG.youtubeChannelId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
