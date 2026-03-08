@@ -35,7 +35,6 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 | `endMilestone` | `40000` | Right end of bar |
 | `nextMilestone` | `35000` | Next milestone to reach |
 | `profilePicUrl` | `'profile.jpg'` | Local filename or URL |
-| `date` | `'08/10/2025'` | Shown bottom-left (MM/DD/YYYY) |
 | `youtubeChannelId` | `''` | Channel ID for approximate API-key count |
 | `youtubeApiKey` | `''` | YouTube Data API v3 key (approximate ±100) |
 | `refreshSeconds` | `60` | How often to poll YouTube |
