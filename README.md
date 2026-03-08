@@ -39,6 +39,7 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 | `pillColor` | `'#2d3f6e'` | Background pill colour |
 | `streamElementsJwt` | `''` | SE JWT — positions the bar |
 | `refreshSeconds` | `60` | Auto-refresh interval |
+| `staticSubCount` | `0` | Static subscriber count shown under bar |
 <!-- CONFIG_TABLE_END -->
 
 ## Getting an Exact Sub Count (OAuth — recommended)

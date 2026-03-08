@@ -279,6 +279,38 @@
 
     .field-span3 { grid-column: span 3; }
     .field-span4 { grid-column: span 4; }
+
+    /* ════════════════════════════════════════
+       STATIC SUBS PILL
+    ════════════════════════════════════════ */
+    .static-pill {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 10px;
+      background: var(--pill-bg, rgba(45, 63, 110, 0.60));
+      border-radius: 0 0 22px 22px;
+      padding: 2px 32px 9px;
+      width: fit-content;
+      margin: 0 auto;
+    }
+
+    .static-pill-label {
+      color: #90b8e8;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .static-pill-count {
+      font-family: 'Eurostile', 'Arial Black', sans-serif;
+      font-weight: bold;
+      font-style: italic;
+      color: #fff;
+      font-size: 18px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+    }
   </style>
 </head>
 <body>
@@ -293,6 +325,12 @@
     <span class="milestone" id="endLabel"></span>
     <img class="profile-pic" id="profilePic" src="" alt="streamer" style="left:0">
   </div>
+</div>
+
+<!-- ── STATIC SUBS PILL ──────────────────────────────────────── -->
+<div class="static-pill">
+  <span class="static-pill-label">Subscribers</span>
+  <span class="static-pill-count" id="staticSubCount">—</span>
 </div>
 
 <!-- ── NOTIFICATIONS ──────────────────────────────────────── -->
@@ -353,10 +391,14 @@
 
     <!-- Row 3: actions -->
     <div class="field">
+      <label>Static Sub Count</label>
+      <input id="c-static-subs" type="number" placeholder="0">
+    </div>
+    <div class="field">
       <label>Auto-refresh (seconds)</label>
       <input id="c-refresh" type="number" placeholder="60" min="10">
     </div>
-    <div class="field actions-cell field-span3">
+    <div class="field actions-cell field-span2">
       <label>​</label>
       <div class="console-actions">
         <button class="btn-action btn-disconnect" id="btnClearSE">✕ Clear SE</button>
@@ -384,6 +426,7 @@ const DEFAULTS = {
   pillColor:       '#2d3f6e',     // Background pill colour
   streamElementsJwt: '',          // SE JWT — positions the bar
   refreshSeconds:  60,            // Auto-refresh interval
+  staticSubCount:  0,             // Static subscriber count shown under bar
 };
 
 const CONFIG = Object.assign({}, DEFAULTS);
@@ -506,11 +549,11 @@ async function refresh() {
 // ── Console wiring ───────────────────────────────────────────────
 function initConsole() {
   const bindings = [
-    { id: 'c-start',   key: 'startMilestone', parse: Number },
-    { id: 'c-end',     key: 'endMilestone',   parse: Number },
-    { id: 'c-next',    key: 'nextMilestone',  parse: Number },
-    { id: 'c-pic',     key: 'profilePicUrl',  parse: String },
-    { id: 'c-refresh', key: 'refreshSeconds', parse: Number },
+    { id: 'c-start',       key: 'startMilestone', parse: Number },
+    { id: 'c-end',         key: 'endMilestone',   parse: Number },
+    { id: 'c-next',        key: 'nextMilestone',  parse: Number },
+    { id: 'c-pic',         key: 'profilePicUrl',  parse: String },
+    { id: 'c-refresh',     key: 'refreshSeconds', parse: Number },
   ];
 
   for (const { id, key, parse } of bindings) {
@@ -522,6 +565,17 @@ function initConsole() {
       if (raw !== '') CONFIG[key] = parse(raw);
       saveConfig();
       refresh();
+    });
+  }
+
+  const staticSubEl = document.getElementById('c-static-subs');
+  if (staticSubEl) {
+    staticSubEl.value = CONFIG.staticSubCount || '';
+    staticSubEl.addEventListener('input', () => {
+      const raw = staticSubEl.value.trim();
+      CONFIG.staticSubCount = raw !== '' ? Number(raw) : 0;
+      saveConfig();
+      updateStaticSubDisplay();
     });
   }
 
@@ -593,6 +647,13 @@ function initConsole() {
   });
 
   if (CONFIG.streamElementsJwt) setSeBadge('auth-on');
+}
+
+// ── Static sub display ───────────────────────────────────────────
+function updateStaticSubDisplay() {
+  const el = document.getElementById('staticSubCount');
+  if (!el) return;
+  el.textContent = CONFIG.staticSubCount ? fmtK(CONFIG.staticSubCount) : '—';
 }
 
 // ── Notification queue ───────────────────────────────────────────
@@ -667,6 +728,7 @@ window.addEventListener('load', () => {
   applyBarColor(CONFIG.barColor);
   applyTrackColor(CONFIG.trackColor);
   applyPillColor(CONFIG.pillColor);
+  updateStaticSubDisplay();
   refresh();
   startRefreshTimer();
   connectSESocket();
