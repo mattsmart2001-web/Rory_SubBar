@@ -33,6 +33,35 @@
       padding: 0 24px;
     }
 
+    /* ── Notification row ─────────────────── */
+    .notif-row {
+      width: 1280px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .notif-text {
+      font-family: 'Eurostile', 'Arial Black', sans-serif;
+      font-weight: bold;
+      font-style: italic;
+      font-size: 22px;
+      color: #fff;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 22px rgba(94,232,252,0.45);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      white-space: nowrap;
+    }
+
+    .notif-text.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     .bar-row {
       display: flex;
       align-items: center;
@@ -264,6 +293,11 @@
     <span class="milestone" id="endLabel"></span>
     <img class="profile-pic" id="profilePic" src="" alt="streamer" style="left:0">
   </div>
+</div>
+
+<!-- ── NOTIFICATIONS ──────────────────────────────────────── -->
+<div class="notif-row">
+  <span class="notif-text" id="notifText"></span>
 </div>
 
 <!-- ── CONTROL CONSOLE ────────────────────────────────────
@@ -528,6 +562,7 @@ function initConsole() {
       setSeBadge(CONFIG.streamElementsJwt ? 'auth-on' : 'auth-off');
       startRefreshTimer();
       refresh();
+      connectSESocket();
     });
   }
 
@@ -538,11 +573,77 @@ function initConsole() {
     setSeBadge('auth-off');
     startRefreshTimer();
     refresh();
+    connectSESocket();
   });
 
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
 
   if (CONFIG.streamElementsJwt) setSeBadge('auth-on');
+}
+
+// ── Notification queue ───────────────────────────────────────────
+const notifQueue = [];
+let notifBusy = false;
+
+function showNotif(msg) {
+  notifQueue.push(msg);
+  if (!notifBusy) drainNotifQueue();
+}
+
+function drainNotifQueue() {
+  if (!notifQueue.length) { notifBusy = false; return; }
+  notifBusy = true;
+  const el = document.getElementById('notifText');
+  el.textContent = notifQueue.shift();
+  el.classList.add('visible');
+  setTimeout(() => {
+    el.classList.remove('visible');
+    setTimeout(drainNotifQueue, 450); // wait for fade-out
+  }, 4500);
+}
+
+// ── SE realtime socket ───────────────────────────────────────────
+let seSocket = null;
+
+function connectSESocket() {
+  if (seSocket) { seSocket.disconnect(); seSocket = null; }
+  if (!CONFIG.streamElementsJwt) return;
+
+  function _connect() {
+    seSocket = window.io('https://realtime.streamelements.com', { transports: ['websocket'] });
+
+    seSocket.on('connect', () => {
+      seSocket.emit('authenticate', { method: 'jwt', token: CONFIG.streamElementsJwt });
+    });
+
+    seSocket.on('event', ({ type, data: d = {} }) => {
+      if (type === 'subscriber') {
+        if (d.gifted && d.sender) {
+          showNotif(`${d.sender} gifted a sub to ${d.username}!`);
+        } else if (d.amount > 1) {
+          showNotif(`${d.username} has resubscribed for ${d.amount} months!`);
+        } else {
+          showNotif(`${d.username} has just subscribed!`);
+        }
+      } else if (type === 'communityGiftPurchase') {
+        showNotif(`${d.username} gifted ${d.amount} subs to the community!`);
+      }
+    });
+
+    // also fire on test events from SE overlay editor
+    seSocket.on('event:test', ({ type, data: d = {} }) => {
+      seSocket.emit('event', { type, data: d });
+    });
+  }
+
+  if (window.io) {
+    _connect();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js';
+    s.onload = _connect;
+    document.head.appendChild(s);
+  }
 }
 
 // ── Boot ─────────────────────────────────────────────────────────
@@ -554,6 +655,7 @@ window.addEventListener('load', () => {
   applyPillColor(CONFIG.pillColor);
   refresh();
   startRefreshTimer();
+  connectSESocket();
 });
 </script>
 </body>
