@@ -33,9 +33,10 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 | `startMilestone` | `30000` | Left end of bar |
 | `endMilestone` | `40000` | Right end of bar |
 | `nextMilestone` | `35000` | Next milestone label |
-| `barFill` | `0` | Bar fill % (0–100) |
 | `profilePicUrl` | `'profile.jpg'` | Local filename or URL |
 | `barColor` | `'#5ee8fc'` | Bar fill colour |
+| `streamElementsJwt` | `''` | SE JWT — positions the bar |
+| `refreshSeconds` | `60` | Auto-refresh interval |
 <!-- CONFIG_TABLE_END -->
 
 ## Getting an Exact Sub Count (OAuth — recommended)

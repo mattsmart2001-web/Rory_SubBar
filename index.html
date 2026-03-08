@@ -276,15 +276,27 @@
       <input id="c-barcolor" type="color" value="#5ee8fc">
     </div>
 
-    <!-- Row 2: profile pic -->
-    <div class="field field-span3">
+    <!-- Row 2: profile pic + SE JWT -->
+    <div class="field field-span2">
       <label>Profile Pic — local filename or full URL</label>
       <input id="c-pic" type="text" placeholder="profile.jpg  or  https://…">
     </div>
-    <div class="field actions-cell">
+    <div class="field field-span2">
+      <label>StreamElements JWT — positions the bar (streamelements.com → profile → Show Secrets)</label>
+      <input id="c-se-jwt" type="password" placeholder="eyJ…">
+    </div>
+
+    <!-- Row 3: actions -->
+    <div class="field field-span2">
+      <label>Auto-refresh (seconds)</label>
+      <input id="c-refresh" type="number" placeholder="60" min="10">
+    </div>
+    <div class="field actions-cell field-span2">
       <label>​</label>
       <div class="console-actions">
-        <button class="btn-action" id="btnRefresh">↻ Apply</button>
+        <button class="btn-action btn-disconnect" id="btnClearSE">✕ Clear SE</button>
+        <span class="status auth-off" id="seBadge">● Not connected</span>
+        <button class="btn-action" id="btnRefresh">↻ Refresh</button>
       </div>
     </div>
 
@@ -297,12 +309,13 @@
 //  DEFAULTS — first-run values; overridden by console / localStorage
 // ================================================================
 const DEFAULTS = {
-  startMilestone: 30000,         // Left end of bar
-  endMilestone:   40000,         // Right end of bar
-  nextMilestone:  35000,         // Next milestone label
-  barFill:        0,             // Bar fill % (0–100)
-  profilePicUrl:  'profile.jpg', // Local filename or URL
-  barColor:       '#5ee8fc',     // Bar fill colour
+  startMilestone:  30000,         // Left end of bar
+  endMilestone:    40000,         // Right end of bar
+  nextMilestone:   35000,         // Next milestone label
+  profilePicUrl:   'profile.jpg', // Local filename or URL
+  barColor:        '#5ee8fc',     // Bar fill colour
+  streamElementsJwt: '',          // SE JWT — positions the bar
+  refreshSeconds:  60,            // Auto-refresh interval
 };
 
 const CONFIG = Object.assign({}, DEFAULTS);
@@ -324,6 +337,33 @@ function loadSaved() {
 
 function saveConfig() {
   localStorage.setItem('subbar_config', JSON.stringify(CONFIG));
+}
+
+// ── SE badge ─────────────────────────────────────────────────────
+function setSeBadge(state) {
+  const el = document.getElementById('seBadge');
+  if (!el) return;
+  el.className   = 'status ' + state;
+  el.textContent = state === 'auth-on' ? '● Connected ✓' : '● Not connected';
+}
+
+// ── StreamElements fetch ──────────────────────────────────────────
+async function fetchStreamElementsSubs() {
+  if (!CONFIG.streamElementsJwt) return null;
+  try {
+    const res  = await fetch('https://api.streamelements.com/kappa/v2/channels/me', {
+      headers: { Authorization: `Bearer ${CONFIG.streamElementsJwt}` }
+    });
+    const data = await res.json();
+    if (!res.ok) { setSeBadge('auth-off'); return null; }
+    const count = data?.providerTotals?.['subscriber-total'];
+    if (count != null) { setSeBadge('auth-on'); return parseInt(count, 10); }
+    setSeBadge('auth-off');
+    return null;
+  } catch (e) {
+    setSeBadge('auth-off');
+    return null;
+  }
 }
 
 // ── Bar colour ───────────────────────────────────────────────────
@@ -349,26 +389,44 @@ function positionIndicator(pct) {
   ind.style.left = left + 'px';
 }
 
-function updateUI() {
-  const pct = CONFIG.barFill / 100;
-  document.getElementById('barFill').style.width  = CONFIG.barFill + '%';
+function updateUI(fillPct) {
+  const pct = Math.max(0, Math.min(1, fillPct / 100));
+  document.getElementById('barFill').style.width    = pct * 100 + '%';
   document.getElementById('startLabel').textContent = fmtK(CONFIG.startMilestone);
   document.getElementById('endLabel').textContent   = fmtK(CONFIG.endMilestone);
   document.getElementById('profilePic').src         = CONFIG.profilePicUrl;
   requestAnimationFrame(() => positionIndicator(pct));
 }
 
-function refresh() {
-  updateUI();
+let refreshTimer = null;
+
+function startRefreshTimer() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (CONFIG.streamElementsJwt) {
+    refreshTimer = setInterval(refresh, Math.max(10, CONFIG.refreshSeconds) * 1000);
+  }
+}
+
+async function refresh() {
+  let fillPct = 0;
+  if (CONFIG.streamElementsJwt) {
+    const count = await fetchStreamElementsSubs();
+    if (count !== null) {
+      fillPct = (count - CONFIG.startMilestone)
+              / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
+    }
+  }
+  updateUI(fillPct);
 }
 
 // ── Console wiring ───────────────────────────────────────────────
 function initConsole() {
   const bindings = [
-    { id: 'c-start', key: 'startMilestone', parse: Number },
-    { id: 'c-end',   key: 'endMilestone',   parse: Number },
-    { id: 'c-next',  key: 'nextMilestone',  parse: Number },
-    { id: 'c-pic',   key: 'profilePicUrl',  parse: String },
+    { id: 'c-start',   key: 'startMilestone', parse: Number },
+    { id: 'c-end',     key: 'endMilestone',   parse: Number },
+    { id: 'c-next',    key: 'nextMilestone',  parse: Number },
+    { id: 'c-pic',     key: 'profilePicUrl',  parse: String },
+    { id: 'c-refresh', key: 'refreshSeconds', parse: Number },
   ];
 
   for (const { id, key, parse } of bindings) {
@@ -393,7 +451,30 @@ function initConsole() {
     });
   }
 
+  const seEl = document.getElementById('c-se-jwt');
+  if (seEl) {
+    seEl.value = CONFIG.streamElementsJwt;
+    seEl.addEventListener('input', () => {
+      CONFIG.streamElementsJwt = seEl.value.trim();
+      saveConfig();
+      setSeBadge(CONFIG.streamElementsJwt ? 'auth-on' : 'auth-off');
+      startRefreshTimer();
+      refresh();
+    });
+  }
+
+  document.getElementById('btnClearSE')?.addEventListener('click', () => {
+    CONFIG.streamElementsJwt = '';
+    saveConfig();
+    if (seEl) seEl.value = '';
+    setSeBadge('auth-off');
+    startRefreshTimer();
+    refresh();
+  });
+
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
+
+  if (CONFIG.streamElementsJwt) setSeBadge('auth-on');
 }
 
 // ── Boot ─────────────────────────────────────────────────────────
@@ -402,6 +483,7 @@ window.addEventListener('load', () => {
   initConsole();
   applyBarColor(CONFIG.barColor);
   refresh();
+  startRefreshTimer();
 });
 </script>
 </body>
