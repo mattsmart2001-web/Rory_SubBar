@@ -452,14 +452,19 @@ async function fetchStreamElementsSubs() {
     const res = await fetch('https://api.streamelements.com/kappa/v2/channels/me', {
       headers: { Authorization: `Bearer ${CONFIG.streamElementsJwt}` }
     });
-    if (!res.ok) { setSeBadge('auth-off'); return null; }
     const data = await res.json();
+    if (!res.ok) {
+      console.warn('StreamElements error', res.status, data);
+      setSeBadge('auth-off');
+      return null;
+    }
+    console.log('StreamElements response:', JSON.stringify(data, null, 2));
     const count = data?.youtube?.subscriberCount
                ?? data?.youtube?.subscribers
                ?? data?.subscribers
                ?? data?.subscriber_count;
     if (count != null) { setSeBadge('auth-on'); return parseInt(count, 10); }
-    console.warn('StreamElements: no sub count in response', data);
+    console.warn('StreamElements: no sub count found in response (see above)');
     setSeBadge('auth-off');
     return null;
   } catch (e) {
