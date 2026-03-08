@@ -227,13 +227,6 @@
     .btn-action:hover  { background: #28408a; }
     .btn-action:active { background: #0e2048; }
 
-    .btn-action.btn-connect {
-      background: #1a4a28;
-      border-color: #3a9858;
-      color: #a0e8b8;
-    }
-
-    .btn-action.btn-connect:hover  { background: #245830; }
     .btn-action.btn-disconnect {
       background: #4a1a1a;
       border-color: #985050;
@@ -253,7 +246,6 @@
     .status.error    { color: #ee5040; }
     .status.auth-off { color: #607090; }
     .status.auth-on  { color: #40dd80; }
-    .status.auth-pending { color: #e8c840; }
 
     /* Divider between API-key row and OAuth row */
     .console-divider {
@@ -263,81 +255,8 @@
       margin: 2px 0;
     }
 
-    /* ── Auth prompt (shown during device code flow) ── */
-    .auth-prompt {
-      display: none;
-      margin-top: 12px;
-      padding: 12px 16px;
-      background: #0c1a30;
-      border-radius: 6px;
-      border: 1px solid #3a5898;
-    }
-
-    .auth-prompt.visible { display: block; }
-
-    .auth-prompt-title {
-      color: #5ee8fc;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-
-    .auth-steps {
-      display: flex;
-      gap: 40px;
-      align-items: flex-start;
-    }
-
-    .auth-step-label {
-      color: #7898c0;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 4px;
-    }
-
-    .auth-url-val {
-      color: #d8eaff;
-      font-size: 13px;
-      font-weight: 700;
-      font-family: monospace;
-      background: #0e1e3a;
-      border: 1px solid #3a5898;
-      border-radius: 3px;
-      padding: 4px 10px;
-      display: inline-block;
-    }
-
-    .auth-code-val {
-      color: #5ee8fc;
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: 5px;
-      font-family: 'Arial Black', monospace;
-    }
-
-    .auth-waiting {
-      margin-top: 10px;
-      color: #7898c0;
-      font-size: 10px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .auth-cancel {
-      color: #9898a8;
-      font-size: 10px;
-      background: none;
-      border: 1px solid #3a4060;
-      border-radius: 3px;
-      padding: 2px 8px;
-      cursor: pointer;
-    }
-
-    .auth-cancel:hover { color: #e0e0f0; border-color: #6060a0; }
+    .field-span3 { grid-column: span 3; }
+    .field-span4 { grid-column: span 4; }
   </style>
 </head>
 <body>
@@ -425,7 +344,7 @@
 
     <hr class="console-divider">
 
-    <!-- Row 4: OAuth (exact count) -->
+    <!-- Row 4: OAuth credentials -->
     <div class="field field-span2">
       <label>OAuth Client ID — for EXACT count (see README)</label>
       <input id="c-clientid" type="text" placeholder="000000000000-xxxxxxxx.apps.googleusercontent.com">
@@ -437,30 +356,22 @@
     <div class="field actions-cell">
       <label>​</label>
       <div class="console-actions">
-        <button class="btn-action btn-connect" id="btnConnect">Connect YT Account</button>
-        <span class="status auth-off" id="authBadge">● Not connected</span>
+        <span class="status auth-off" id="authBadge">● No token</span>
       </div>
     </div>
 
-  </div>
+    <!-- Row 5: Refresh token (paste from OAuth Playground) -->
+    <div class="field field-span3">
+      <label>Refresh Token — get from OAuth Playground with yt-analytics.readonly scope (see README)</label>
+      <input id="c-refreshtoken" type="password" placeholder="1//0g… paste here">
+    </div>
+    <div class="field actions-cell">
+      <label>​</label>
+      <div class="console-actions">
+        <button class="btn-action btn-disconnect" id="btnClearToken">✕ Clear</button>
+      </div>
+    </div>
 
-  <!-- Device code prompt (shown during OAuth flow) -->
-  <div class="auth-prompt" id="authPrompt">
-    <div class="auth-prompt-title">Authorize YouTube Access</div>
-    <div class="auth-steps">
-      <div>
-        <div class="auth-step-label">1 · Visit this URL on any device</div>
-        <span class="auth-url-val" id="authUrl"></span>
-      </div>
-      <div>
-        <div class="auth-step-label">2 · Enter this code</div>
-        <span class="auth-code-val" id="authCode"></span>
-      </div>
-    </div>
-    <div class="auth-waiting">
-      <span id="authWaiting">⏳ Waiting for you to authorize…</span>
-      <button class="auth-cancel" id="btnCancelAuth">Cancel</button>
-    </div>
   </div>
 
 </div>
@@ -486,7 +397,7 @@ const DEFAULTS = {
 const CONFIG = Object.assign({}, DEFAULTS);
 
 // Transient OAuth state (not persisted — refreshed each session)
-const oauth = { accessToken: '', expiresAt: 0, pollTimer: null };
+const oauth = { accessToken: '', expiresAt: 0 };
 
 // ================================================================
 
@@ -524,19 +435,10 @@ function setStatus(state, text) {
 }
 
 function setAuthBadge(state) {
-  const el  = document.getElementById('authBadge');
-  const btn = document.getElementById('btnConnect');
-  if (!el || !btn) return;
-  const labels = {
-    'auth-off':     ['● Not connected',  'Connect YT Account', 'btn-action btn-connect'],
-    'auth-pending': ['● Connecting…',    'Cancel',             'btn-action'],
-    'auth-on':      ['● Connected ✓',    'Disconnect',         'btn-action btn-disconnect'],
-  };
-  const [badge, btnText, btnClass] = labels[state] || labels['auth-off'];
-  el.className    = 'status ' + state;
-  el.textContent  = badge;
-  btn.textContent = btnText;
-  btn.className   = btnClass;
+  const el = document.getElementById('authBadge');
+  if (!el) return;
+  el.className   = 'status ' + state;
+  el.textContent = state === 'auth-on' ? '● Token active ✓' : '● No token';
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
@@ -575,7 +477,7 @@ function updateUI(subs) {
   requestAnimationFrame(() => positionIndicator(pct));
 }
 
-// ── OAuth — Device Authorization Flow ───────────────────────────
+// ── OAuth ─────────────────────────────────────────────────────────
 async function getAccessToken() {
   if (!CONFIG.oauthRefreshToken || !CONFIG.oauthClientId) return null;
 
@@ -609,112 +511,23 @@ async function getAccessToken() {
   return null;
 }
 
-async function startOAuthFlow() {
-  if (!CONFIG.oauthClientId || !CONFIG.oauthClientSecret) {
-    alert('Enter your OAuth Client ID and Client Secret first.');
-    return;
-  }
-
-  setAuthBadge('auth-pending');
-
-  let deviceData;
-  try {
-    const res = await fetch('https://oauth2.googleapis.com/device/code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: CONFIG.oauthClientId,
-        scope: 'https://www.googleapis.com/auth/youtube.readonly',
-      }),
-    });
-    deviceData = await res.json();
-  } catch (e) {
-    alert('Could not reach Google — check your internet connection.');
-    setAuthBadge('auth-off');
-    return;
-  }
-
-  if (deviceData.error) {
-    alert(`Google rejected the auth request:\n\n${deviceData.error}: ${deviceData.error_description || ''}\n\nMake sure the YouTube Analytics API is enabled in Google Cloud Console and the scope is added to your OAuth consent screen.`);
-    setAuthBadge('auth-off');
-    return;
-  }
-
-  document.getElementById('authUrl').textContent  = deviceData.verification_url;
-  document.getElementById('authCode').textContent = deviceData.user_code;
-  document.getElementById('authWaiting').textContent = '⏳ Waiting for you to authorize…';
-  document.getElementById('authPrompt').classList.add('visible');
-
-  const interval = (deviceData.interval || 5) * 1000;
-  const deadline = Date.now() + deviceData.expires_in * 1000;
-
-  oauth.pollTimer = setInterval(async () => {
-    if (Date.now() > deadline) { cancelOAuth('Code expired. Try again.'); return; }
-
-    try {
-      const res = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id:     CONFIG.oauthClientId,
-          client_secret: CONFIG.oauthClientSecret,
-          device_code:   deviceData.device_code,
-          grant_type:    'urn:ietf:params:oauth:grant-type:device_code',
-        }),
-      });
-      const data = await res.json();
-
-      if (data.access_token) {
-        clearInterval(oauth.pollTimer);
-        oauth.accessToken = data.access_token;
-        oauth.expiresAt   = Date.now() + data.expires_in * 1000;
-        CONFIG.oauthRefreshToken = data.refresh_token;
-        saveConfig();
-        document.getElementById('authPrompt').classList.remove('visible');
-        setAuthBadge('auth-on');
-        startRefreshTimer();
-        refresh();
-      } else if (data.error === 'slow_down') {
-        clearInterval(oauth.pollTimer);
-        oauth.pollTimer = setInterval(arguments.callee, interval + 5000);
-      }
-    } catch (e) { /* network blip, keep polling */ }
-  }, interval);
-}
-
-function cancelOAuth(msg) {
-  clearInterval(oauth.pollTimer);
-  document.getElementById('authPrompt').classList.remove('visible');
-  if (msg) document.getElementById('authWaiting').textContent = msg;
-  setAuthBadge(CONFIG.oauthRefreshToken ? 'auth-on' : 'auth-off');
-}
-
-function disconnectOAuth() {
-  oauth.accessToken = '';
-  oauth.expiresAt   = 0;
-  CONFIG.oauthRefreshToken = '';
-  saveConfig();
-  setAuthBadge('auth-off');
-  setStatus('manual', 'Manual');
-  startRefreshTimer();
-}
-
 // ── YouTube fetch ────────────────────────────────────────────────
 async function fetchYouTubeSubs() {
-  // 1. Prefer OAuth — authenticated channel owner gets exact (unrounded) count
+  // 1. Prefer OAuth — YouTube Analytics API returns exact (unrounded) counts
   const token = await getAccessToken();
   if (token) {
     try {
-      const res  = await fetch(
-        'https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true',
+      const today = new Date().toISOString().split('T')[0];
+      const res   = await fetch(
+        `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${today}&endDate=${today}&metrics=subscriberCount`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
-      if (data.items?.[0]?.statistics?.subscriberCount != null) {
-        return parseInt(data.items[0].statistics.subscriberCount, 10);
+      if (data.rows?.[0]?.[0] != null) {
+        return parseInt(data.rows[0][0], 10);
       }
     } catch (e) {
-      console.warn('OAuth fetch failed:', e);
+      console.warn('Analytics fetch failed:', e);
     }
   }
 
@@ -801,19 +614,32 @@ function initConsole() {
     });
   }
 
+  // Refresh token field — wired separately to also update the auth badge
+  const rtEl = document.getElementById('c-refreshtoken');
+  if (rtEl) {
+    rtEl.value = CONFIG.oauthRefreshToken;
+    rtEl.addEventListener('input', () => {
+      CONFIG.oauthRefreshToken = rtEl.value.trim();
+      saveConfig();
+      setAuthBadge(CONFIG.oauthRefreshToken ? 'auth-on' : 'auth-off');
+      startRefreshTimer();
+      refresh();
+    });
+  }
+
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
 
-  document.getElementById('btnConnect')?.addEventListener('click', () => {
-    if (CONFIG.oauthRefreshToken) {
-      disconnectOAuth();
-    } else {
-      startOAuthFlow();
-    }
+  document.getElementById('btnClearToken')?.addEventListener('click', () => {
+    oauth.accessToken = '';
+    oauth.expiresAt   = 0;
+    CONFIG.oauthRefreshToken = '';
+    saveConfig();
+    if (rtEl) rtEl.value = '';
+    setAuthBadge('auth-off');
+    setStatus('manual', 'Manual');
+    startRefreshTimer();
   });
 
-  document.getElementById('btnCancelAuth')?.addEventListener('click', () => cancelOAuth());
-
-  // Restore auth badge state from saved token
   if (CONFIG.oauthRefreshToken) setAuthBadge('auth-on');
 }
 
