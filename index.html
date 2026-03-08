@@ -454,17 +454,13 @@ async function fetchStreamElementsSubs() {
     });
     const data = await res.json();
     if (!res.ok) {
-      console.warn('StreamElements error', res.status, data);
+      console.warn('StreamElements error', res.status, data?.message);
       setSeBadge('auth-off');
       return null;
     }
-    console.log('StreamElements response:', JSON.stringify(data, null, 2));
-    const count = data?.youtube?.subscriberCount
-               ?? data?.youtube?.subscribers
-               ?? data?.subscribers
-               ?? data?.subscriber_count;
+    const count = data?.providerTotals?.['subscriber-total'];
     if (count != null) { setSeBadge('auth-on'); return parseInt(count, 10); }
-    console.warn('StreamElements: no sub count found in response (see above)');
+    console.warn('StreamElements: subscriber-total not found in providerTotals');
     setSeBadge('auth-off');
     return null;
   } catch (e) {
