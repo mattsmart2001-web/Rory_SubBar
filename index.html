@@ -479,6 +479,13 @@ async function refresh() {
       // YouTube API rounds to 3 significant figures — never let it go below
       // the manually entered count (which the user knows is exact)
       subs = Math.max(live, CONFIG.currentSubs);
+      // If API returned something higher, update currentSubs so it tracks forward
+      if (subs > CONFIG.currentSubs) {
+        CONFIG.currentSubs = subs;
+        saveConfig();
+        const el = document.getElementById('c-subs');
+        if (el) el.value = subs;
+      }
       setStatus('live', `Live · ${fmt(subs)}`);
     } else {
       setStatus('error', 'API Error');
