@@ -16,10 +16,10 @@ const readmePath = path.join(root, 'README.md');
 
 // ── 1. Extract the CONFIG block from index.html ──────────────────────────────
 const html = fs.readFileSync(htmlPath, 'utf8');
-const configMatch = html.match(/const CONFIG = \{([\s\S]*?)\};/);
+const configMatch = html.match(/const (?:CONFIG|DEFAULTS) = \{([\s\S]*?)\};/);
 
 if (!configMatch) {
-  console.error('update-readme: Could not find CONFIG block in index.html');
+  console.error('update-readme: Could not find CONFIG/DEFAULTS block in index.html');
   process.exit(1);
 }
 

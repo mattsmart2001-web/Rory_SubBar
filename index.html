@@ -8,13 +8,15 @@
 
     body {
       width: 1280px;
-      height: 110px;
-      overflow: hidden;
       background: transparent;
       -webkit-font-smoothing: antialiased;
+      font-family: Arial, sans-serif;
     }
 
-    .overlay {
+    /* ════════════════════════════════════════
+       BAR
+    ════════════════════════════════════════ */
+    .bar-container {
       width: 1280px;
       height: 110px;
       background: #2d3f6e;
@@ -24,7 +26,6 @@
       flex-direction: column;
     }
 
-    /* ── Row 1: indicator floats here ── */
     .indicator-row {
       flex: 0 0 48px;
       position: relative;
@@ -60,7 +61,6 @@
       flex-shrink: 0;
     }
 
-    /* ── Row 2: segmented progress bar ── */
     .bar-row {
       flex: 0 0 36px;
       display: flex;
@@ -86,7 +86,6 @@
       border-radius: 3px;
     }
 
-    /* Unfilled dark segments */
     .bar-track::before {
       content: '';
       position: absolute;
@@ -98,7 +97,6 @@
       );
     }
 
-    /* Filled cyan segments */
     .bar-fill {
       position: absolute;
       inset: 0 auto 0 0;
@@ -110,7 +108,6 @@
       transition: width 0.6s ease;
     }
 
-    /* ── Row 3: info row ── */
     .info-row {
       flex: 1;
       display: flex;
@@ -120,7 +117,6 @@
 
     .date-text {
       color: #7aaeff;
-      font-family: Arial, sans-serif;
       font-size: 11px;
       font-weight: 700;
       line-height: 1.3;
@@ -138,11 +134,120 @@
     }
 
     .goal-text .num { font-size: 17px; }
+
+    /* ════════════════════════════════════════
+       CONTROL CONSOLE
+    ════════════════════════════════════════ */
+    .console {
+      width: 1280px;
+      margin-top: 8px;
+      background: #141e36;
+      border-radius: 10px;
+      border: 1px solid #2a3860;
+      padding: 10px 14px 12px;
+    }
+
+    .console-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 9px;
+    }
+
+    .console-title {
+      color: #5888ee;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+    }
+
+    .console-tip {
+      color: #3a5070;
+      font-size: 10px;
+      font-style: italic;
+    }
+
+    .console-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 8px 10px;
+    }
+
+    .field label {
+      display: block;
+      color: #5878aa;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 3px;
+    }
+
+    .field input {
+      width: 100%;
+      background: #0c1526;
+      border: 1px solid #253560;
+      border-radius: 4px;
+      padding: 5px 8px;
+      color: #c8d8ff;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus {
+      border-color: #5888ee;
+      background: #111e38;
+    }
+
+    .field input::placeholder { color: #2e4060; }
+
+    .field-span2 { grid-column: span 2; }
+
+    /* Actions cell (bottom-right) */
+    .actions-cell label { visibility: hidden; }
+
+    .console-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 27px; /* match input height */
+    }
+
+    .btn-refresh {
+      background: #1e3468;
+      border: 1px solid #3a5898;
+      border-radius: 4px;
+      color: #a0c0ff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 0 14px;
+      height: 100%;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    .btn-refresh:hover  { background: #28408a; }
+    .btn-refresh:active { background: #0e2048; }
+
+    .status {
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status.manual  { color: #5a7a9a; }
+    .status.loading { color: #aaaaaa; }
+    .status.live    { color: #40dd80; }
+    .status.error   { color: #ee5040; }
   </style>
 </head>
 <body>
-<div class="overlay">
 
+<!-- ── BAR ─────────────────────────────────────────────── -->
+<div class="bar-container">
   <div class="indicator-row" id="indicatorRow">
     <div class="indicator" id="indicator">
       <div class="sub-count-box" id="subCountBox"></div>
@@ -150,7 +255,7 @@
     </div>
   </div>
 
-  <div class="bar-row" id="barRow">
+  <div class="bar-row">
     <span class="milestone" id="startLabel"></span>
     <div class="bar-track" id="barTrack">
       <div class="bar-fill" id="barFill" style="width:0"></div>
@@ -164,28 +269,91 @@
       <span class="num" id="subsNeeded"></span> more subs to <span id="nextMilestoneText"></span>!
     </div>
   </div>
+</div>
 
+<!-- ── CONTROL CONSOLE ───────────────────────────────────
+     In OBS: alt-drag the BOTTOM edge of this browser source
+     upward until the console disappears. The bar stays visible.
+──────────────────────────────────────────────────────── -->
+<div class="console">
+  <div class="console-header">
+    <span class="console-title">⚙ Control Console</span>
+    <span class="console-tip">OBS tip: alt-drag the bottom edge of this source upward to hide this panel</span>
+  </div>
+
+  <div class="console-grid">
+
+    <!-- Row 1 -->
+    <div class="field">
+      <label>Start Milestone</label>
+      <input id="c-start" type="number" placeholder="300000">
+    </div>
+    <div class="field">
+      <label>End Milestone</label>
+      <input id="c-end" type="number" placeholder="400000">
+    </div>
+    <div class="field">
+      <label>Next Goal</label>
+      <input id="c-next" type="number" placeholder="325000">
+    </div>
+    <div class="field">
+      <label>Current Subs (manual)</label>
+      <input id="c-subs" type="number" placeholder="324582">
+    </div>
+
+    <!-- Row 2 -->
+    <div class="field field-span2">
+      <label>Profile Pic — local filename or full URL</label>
+      <input id="c-pic" type="text" placeholder="profile.jpg  or  https://…">
+    </div>
+    <div class="field">
+      <label>Date (shown bottom-left)</label>
+      <input id="c-date" type="text" placeholder="08/10/2025">
+    </div>
+    <div class="field">
+      <label>Auto-refresh (seconds)</label>
+      <input id="c-refresh" type="number" placeholder="60" min="10">
+    </div>
+
+    <!-- Row 3 -->
+    <div class="field field-span2">
+      <label>YouTube Channel ID</label>
+      <input id="c-channel" type="text" placeholder="UCxxxxxxxxxxxxxxxxxxxxx">
+    </div>
+    <div class="field">
+      <label>YouTube API Key</label>
+      <input id="c-apikey" type="password" placeholder="AIza…">
+    </div>
+    <div class="field actions-cell">
+      <label>​</label>
+      <div class="console-actions">
+        <button class="btn-refresh" id="btnRefresh">↻ Refresh Now</button>
+        <span class="status manual" id="statusBadge">● Manual</span>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script>
 // ================================================================
-//  CONFIGURATION  —  edit these values
+//  DEFAULTS — shown on first load, then overridden by the console
 // ================================================================
-const CONFIG = {
-  // ── Static fallback (used when YouTube API is not configured) ──
-  currentSubs:    324582,       // Current sub count (manual fallback)
-  startMilestone: 300000,       // Left end of bar  (e.g. 300000)
-  endMilestone:   400000,       // Right end of bar (e.g. 400000)
-  nextMilestone:  325000,       // Next milestone to hit
-  profilePicUrl:  'profile.jpg',// Path to your headshot image (local or URL)
-  date:           '08/10/2025', // Shown bottom-left  (MM/DD/YYYY)
-
-  // ── YouTube Data API v3 (optional — enables live sub count) ────
-  // Get a key at: https://console.cloud.google.com → YouTube Data API v3
-  youtubeChannelId: '',         // e.g.  'UCxxxxxxxxxxxxxxxxxxxxxx'
-  youtubeApiKey:    '',         // Your API key
-  refreshSeconds:   60,         // How often to pull a fresh count
+const DEFAULTS = {
+  currentSubs:      324582,
+  startMilestone:   300000,
+  endMilestone:     400000,
+  nextMilestone:    325000,
+  profilePicUrl:    'profile.jpg',
+  date:             '08/10/2025',
+  youtubeChannelId: '',
+  youtubeApiKey:    '',
+  refreshSeconds:   60,
 };
+
+// Live CONFIG — loaded from localStorage, falls back to DEFAULTS
+const CONFIG = Object.assign({}, DEFAULTS);
+
 // ================================================================
 
 const fmt  = n => Math.round(n).toLocaleString('en-US');
@@ -195,6 +363,27 @@ const fmtK = n => {
   return String(n);
 };
 
+// ── Persistence ─────────────────────────────────────────────────
+function loadSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('subbar_config') || '{}');
+    Object.assign(CONFIG, saved);
+  } catch (e) { /* first run, nothing saved */ }
+}
+
+function saveConfig() {
+  localStorage.setItem('subbar_config', JSON.stringify(CONFIG));
+}
+
+// ── Status badge ─────────────────────────────────────────────────
+function setStatus(state, text) {
+  const el = document.getElementById('statusBadge');
+  if (!el) return;
+  el.className = 'status ' + state;
+  el.textContent = '● ' + text;
+}
+
+// ── Bar rendering ────────────────────────────────────────────────
 function positionIndicator(pct) {
   const indicatorRow = document.getElementById('indicatorRow');
   const barTrack     = document.getElementById('barTrack');
@@ -225,13 +414,13 @@ function updateUI(subs) {
   document.getElementById('endLabel').textContent          = fmtK(endMilestone);
   document.getElementById('profilePic').src                = CONFIG.profilePicUrl;
 
-  // Date: "08/10/2025" → "08/10<br>2025"
   const m = CONFIG.date.match(/^(\d{1,2}\/\d{1,2})\/?(\d{4})$/);
   document.getElementById('dateText').innerHTML = m ? `${m[1]}<br>${m[2]}` : CONFIG.date;
 
   requestAnimationFrame(() => positionIndicator(pct));
 }
 
+// ── YouTube API ──────────────────────────────────────────────────
 async function fetchYouTubeSubs() {
   const { youtubeChannelId, youtubeApiKey } = CONFIG;
   try {
@@ -245,20 +434,68 @@ async function fetchYouTubeSubs() {
   }
 }
 
+let refreshTimer = null;
+
+function startRefreshTimer() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (CONFIG.youtubeChannelId && CONFIG.youtubeApiKey) {
+    refreshTimer = setInterval(refresh, Math.max(10, CONFIG.refreshSeconds) * 1000);
+  }
+}
+
 async function refresh() {
   let subs = CONFIG.currentSubs;
   if (CONFIG.youtubeChannelId && CONFIG.youtubeApiKey) {
+    setStatus('loading', 'Fetching…');
     const live = await fetchYouTubeSubs();
-    if (live !== null) subs = live;
+    if (live !== null) {
+      subs = live;
+      setStatus('live', `Live · ${fmt(live)}`);
+    } else {
+      setStatus('error', 'API Error');
+    }
+  } else {
+    setStatus('manual', 'Manual');
   }
   updateUI(subs);
 }
 
-window.addEventListener('load', () => {
-  refresh();
-  if (CONFIG.youtubeChannelId && CONFIG.youtubeApiKey) {
-    setInterval(refresh, CONFIG.refreshSeconds * 1000);
+// ── Console wiring ───────────────────────────────────────────────
+function initConsole() {
+  const bindings = [
+    { id: 'c-start',   key: 'startMilestone',   parse: Number },
+    { id: 'c-end',     key: 'endMilestone',     parse: Number },
+    { id: 'c-next',    key: 'nextMilestone',    parse: Number },
+    { id: 'c-subs',    key: 'currentSubs',      parse: Number },
+    { id: 'c-pic',     key: 'profilePicUrl',    parse: String },
+    { id: 'c-date',    key: 'date',             parse: String },
+    { id: 'c-refresh', key: 'refreshSeconds',   parse: Number },
+    { id: 'c-channel', key: 'youtubeChannelId', parse: String },
+    { id: 'c-apikey',  key: 'youtubeApiKey',    parse: String },
+  ];
+
+  for (const { id, key, parse } of bindings) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.value = CONFIG[key];                       // populate from loaded config
+    el.addEventListener('input', () => {
+      const raw = el.value.trim();
+      if (raw !== '') CONFIG[key] = parse(raw);
+      saveConfig();
+      startRefreshTimer();                        // restart timer if interval changed
+      refresh();
+    });
   }
+
+  document.getElementById('btnRefresh')?.addEventListener('click', refresh);
+}
+
+// ── Boot ─────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  loadSaved();
+  initConsole();
+  refresh();
+  startRefreshTimer();
 });
 </script>
 </body>

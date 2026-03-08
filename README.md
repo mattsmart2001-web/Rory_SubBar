@@ -29,15 +29,15 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 <!-- CONFIG_TABLE_START -->
 | Key | Default | Description |
 |-----|---------|-------------|
-| `currentSubs` | `324582` | Current sub count (manual fallback) |
-| `startMilestone` | `300000` | Left end of bar  (e.g. 300000) |
-| `endMilestone` | `400000` | Right end of bar (e.g. 400000) |
-| `nextMilestone` | `325000` | Next milestone to hit |
-| `profilePicUrl` | `'profile.jpg'` | Path to your headshot image (local or URL) |
-| `date` | `'08/10/2025'` | Shown bottom-left  (MM/DD/YYYY) |
-| `youtubeChannelId` | `''` | e.g.  'UCxxxxxxxxxxxxxxxxxxxxxx' |
-| `youtubeApiKey` | `''` | Your API key |
-| `refreshSeconds` | `60` | How often to pull a fresh count |
+| `currentSubs` | `324582` |  |
+| `startMilestone` | `300000` |  |
+| `endMilestone` | `400000` |  |
+| `nextMilestone` | `325000` |  |
+| `profilePicUrl` | `'profile.jpg'` |  |
+| `date` | `'08/10/2025'` |  |
+| `youtubeChannelId` | `''` |  |
+| `youtubeApiKey` | `''` |  |
+| `refreshSeconds` | `60` |  |
 <!-- CONFIG_TABLE_END -->
 
 ## YouTube Live Sub Count (optional)
