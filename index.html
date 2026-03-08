@@ -7,9 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html {
-      background: #0a1020; /* dark canvas — visible in browsers; OBS: see README */
-    }
+    html { background: #0a1020; }
 
     body {
       width: 1280px;
@@ -31,10 +29,7 @@
       flex-direction: column;
     }
 
-    .indicator-row {
-      flex: 0 0 48px;
-      position: relative;
-    }
+    .indicator-row { flex: 0 0 48px; position: relative; }
 
     .indicator {
       position: absolute;
@@ -58,8 +53,7 @@
     }
 
     .profile-pic {
-      width: 46px;
-      height: 46px;
+      width: 46px; height: 46px;
       border-radius: 50%;
       border: 3px solid #fff;
       object-fit: cover;
@@ -149,7 +143,7 @@
       background: #1a2d52;
       border-radius: 10px;
       border: 2px solid #2e4a82;
-      padding: 0 14px 12px;
+      padding: 0 14px 14px;
     }
 
     .console-header {
@@ -214,43 +208,145 @@
 
     .field-span2 { grid-column: span 2; }
 
-    /* Actions cell (bottom-right) */
+    /* Divider between API-key row and OAuth row */
+    .console-divider {
+      grid-column: span 4;
+      border: none;
+      border-top: 1px solid #243a68;
+      margin: 2px 0;
+    }
+
+    /* Actions cells */
     .actions-cell label { visibility: hidden; }
 
     .console-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
-      height: 27px; /* match input height */
+      gap: 8px;
+      height: 27px;
     }
 
-    .btn-refresh {
+    .btn-action {
       background: #1e3a78;
       border: 1px solid #5e88d8;
       border-radius: 4px;
       color: #c8e0ff;
       font-size: 11px;
       font-weight: 700;
-      padding: 0 14px;
+      padding: 0 12px;
       height: 100%;
       cursor: pointer;
       white-space: nowrap;
       transition: background 0.15s;
+      flex-shrink: 0;
     }
 
-    .btn-refresh:hover  { background: #28408a; }
-    .btn-refresh:active { background: #0e2048; }
+    .btn-action:hover  { background: #28408a; }
+    .btn-action:active { background: #0e2048; }
+
+    .btn-action.btn-connect {
+      background: #1a4a28;
+      border-color: #3a9858;
+      color: #a0e8b8;
+    }
+
+    .btn-action.btn-connect:hover  { background: #245830; }
+    .btn-action.btn-disconnect {
+      background: #4a1a1a;
+      border-color: #985050;
+      color: #e8a0a0;
+    }
 
     .status {
       font-size: 11px;
       font-weight: 700;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
-    .status.manual  { color: #7898c0; }
-    .status.loading { color: #aaaaaa; }
-    .status.live    { color: #40dd80; }
-    .status.error   { color: #ee5040; }
+    .status.manual   { color: #7898c0; }
+    .status.loading  { color: #aaaaaa; }
+    .status.live     { color: #40dd80; }
+    .status.error    { color: #ee5040; }
+    .status.auth-off { color: #607090; }
+    .status.auth-on  { color: #40dd80; }
+    .status.auth-pending { color: #e8c840; }
+
+    /* ── Auth prompt (shown during device code flow) ── */
+    .auth-prompt {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 16px;
+      background: #0c1a30;
+      border-radius: 6px;
+      border: 1px solid #3a5898;
+    }
+
+    .auth-prompt.visible { display: block; }
+
+    .auth-prompt-title {
+      color: #5ee8fc;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .auth-steps {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+    }
+
+    .auth-step-label {
+      color: #7898c0;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
+    }
+
+    .auth-url-val {
+      color: #d8eaff;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: monospace;
+      background: #0e1e3a;
+      border: 1px solid #3a5898;
+      border-radius: 3px;
+      padding: 4px 10px;
+      display: inline-block;
+    }
+
+    .auth-code-val {
+      color: #5ee8fc;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 5px;
+      font-family: 'Arial Black', monospace;
+    }
+
+    .auth-waiting {
+      margin-top: 10px;
+      color: #7898c0;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .auth-cancel {
+      color: #9898a8;
+      font-size: 10px;
+      background: none;
+      border: 1px solid #3a4060;
+      border-radius: 3px;
+      padding: 2px 8px;
+      cursor: pointer;
+    }
+
+    .auth-cancel:hover { color: #e0e0f0; border-color: #6060a0; }
   </style>
 </head>
 <body>
@@ -280,9 +376,9 @@
   </div>
 </div>
 
-<!-- ── CONTROL CONSOLE ───────────────────────────────────
-     In OBS: alt-drag the BOTTOM edge of this browser source
-     upward until the console disappears. The bar stays visible.
+<!-- ── CONTROL CONSOLE ────────────────────────────────────
+     OBS: alt-drag the bottom edge of this source upward
+     to crop out this panel. The bar stays visible.
 ──────────────────────────────────────────────────────── -->
 <div class="console">
   <div class="console-header">
@@ -292,7 +388,7 @@
 
   <div class="console-grid">
 
-    <!-- Row 1 -->
+    <!-- Row 1: milestones + manual count -->
     <div class="field">
       <label>Start Milestone</label>
       <input id="c-start" type="number" placeholder="300000">
@@ -307,10 +403,10 @@
     </div>
     <div class="field">
       <label>Current Subs (manual)</label>
-      <input id="c-subs" type="number" placeholder="324582">
+      <input id="c-subs" type="number" placeholder="34686">
     </div>
 
-    <!-- Row 2 -->
+    <!-- Row 2: visual settings -->
     <div class="field field-span2">
       <label>Profile Pic — local filename or full URL</label>
       <input id="c-pic" type="text" placeholder="profile.jpg  or  https://…">
@@ -324,44 +420,88 @@
       <input id="c-refresh" type="number" placeholder="60" min="10">
     </div>
 
-    <!-- Row 3 -->
+    <!-- Row 3: API key (approximate, no auth required) -->
     <div class="field field-span2">
-      <label>YouTube Channel ID</label>
+      <label>YouTube Channel ID — for approximate count (API key)</label>
       <input id="c-channel" type="text" placeholder="UCxxxxxxxxxxxxxxxxxxxxx">
     </div>
     <div class="field">
-      <label>YouTube API Key</label>
+      <label>YouTube API Key (approximate ±100)</label>
       <input id="c-apikey" type="password" placeholder="AIza…">
     </div>
     <div class="field actions-cell">
       <label>​</label>
       <div class="console-actions">
-        <button class="btn-refresh" id="btnRefresh">↻ Refresh Now</button>
+        <button class="btn-action" id="btnRefresh">↻ Refresh</button>
         <span class="status manual" id="statusBadge">● Manual</span>
       </div>
     </div>
 
+    <hr class="console-divider">
+
+    <!-- Row 4: OAuth (exact count) -->
+    <div class="field field-span2">
+      <label>OAuth Client ID — for EXACT count (see README)</label>
+      <input id="c-clientid" type="text" placeholder="000000000000-xxxxxxxx.apps.googleusercontent.com">
+    </div>
+    <div class="field">
+      <label>OAuth Client Secret</label>
+      <input id="c-clientsecret" type="password" placeholder="GOCSPX-…">
+    </div>
+    <div class="field actions-cell">
+      <label>​</label>
+      <div class="console-actions">
+        <button class="btn-action btn-connect" id="btnConnect">Connect YT Account</button>
+        <span class="status auth-off" id="authBadge">● Not connected</span>
+      </div>
+    </div>
+
   </div>
+
+  <!-- Device code prompt (shown during OAuth flow) -->
+  <div class="auth-prompt" id="authPrompt">
+    <div class="auth-prompt-title">Authorize YouTube Access</div>
+    <div class="auth-steps">
+      <div>
+        <div class="auth-step-label">1 · Visit this URL on any device</div>
+        <span class="auth-url-val" id="authUrl"></span>
+      </div>
+      <div>
+        <div class="auth-step-label">2 · Enter this code</div>
+        <span class="auth-code-val" id="authCode"></span>
+      </div>
+    </div>
+    <div class="auth-waiting">
+      <span id="authWaiting">⏳ Waiting for you to authorize…</span>
+      <button class="auth-cancel" id="btnCancelAuth">Cancel</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
 // ================================================================
-//  DEFAULTS — shown on first load, then overridden by the console
+//  DEFAULTS — first-run values; overridden by console / localStorage
 // ================================================================
 const DEFAULTS = {
-  currentSubs:      324582,
-  startMilestone:   300000,
-  endMilestone:     400000,
-  nextMilestone:    325000,
-  profilePicUrl:    'profile.jpg',
-  date:             '08/10/2025',
-  youtubeChannelId: '',
-  youtubeApiKey:    '',
-  refreshSeconds:   60,
+  currentSubs:      34686,       // Manual sub count (exact fallback)
+  startMilestone:   30000,       // Left end of bar
+  endMilestone:     40000,       // Right end of bar
+  nextMilestone:    35000,       // Next milestone to reach
+  profilePicUrl:    'profile.jpg', // Local filename or URL
+  date:             '08/10/2025',  // Shown bottom-left (MM/DD/YYYY)
+  youtubeChannelId: '',           // Channel ID for approximate API-key count
+  youtubeApiKey:    '',           // YouTube Data API v3 key (approximate ±100)
+  oauthClientId:    '',           // OAuth Client ID for exact count
+  oauthClientSecret: '',          // OAuth Client Secret
+  oauthRefreshToken: '',          // Stored after first auth — keep private
+  refreshSeconds:   60,           // How often to poll YouTube
 };
 
-// Live CONFIG — loaded from localStorage, falls back to DEFAULTS
 const CONFIG = Object.assign({}, DEFAULTS);
+
+// Transient OAuth state (not persisted — refreshed each session)
+const oauth = { accessToken: '', expiresAt: 0, pollTimer: null };
 
 // ================================================================
 
@@ -372,7 +512,6 @@ const fmtK = n => {
   return String(n);
 };
 
-// Returns the next sensible round-number milestone above n
 function nextRoundNumber(n) {
   let step;
   if      (n <    10000) step =   500;
@@ -382,46 +521,53 @@ function nextRoundNumber(n) {
   return Math.ceil((n + 1) / step) * step;
 }
 
-// ── Persistence ─────────────────────────────────────────────────
+// ── Persistence ──────────────────────────────────────────────────
 function loadSaved() {
   try {
-    const saved = JSON.parse(localStorage.getItem('subbar_config') || '{}');
-    Object.assign(CONFIG, saved);
-  } catch (e) { /* first run, nothing saved */ }
+    Object.assign(CONFIG, JSON.parse(localStorage.getItem('subbar_config') || '{}'));
+  } catch (e) { /* first run */ }
 }
 
 function saveConfig() {
   localStorage.setItem('subbar_config', JSON.stringify(CONFIG));
 }
 
-// ── Status badge ─────────────────────────────────────────────────
+// ── Status / auth badges ─────────────────────────────────────────
 function setStatus(state, text) {
   const el = document.getElementById('statusBadge');
-  if (!el) return;
-  el.className = 'status ' + state;
-  el.textContent = '● ' + text;
+  if (el) { el.className = 'status ' + state; el.textContent = '● ' + text; }
+}
+
+function setAuthBadge(state) {
+  const el  = document.getElementById('authBadge');
+  const btn = document.getElementById('btnConnect');
+  if (!el || !btn) return;
+  const labels = {
+    'auth-off':     ['● Not connected',  'Connect YT Account', 'btn-action btn-connect'],
+    'auth-pending': ['● Connecting…',    'Cancel',             'btn-action'],
+    'auth-on':      ['● Connected ✓',    'Disconnect',         'btn-action btn-disconnect'],
+  };
+  const [badge, btnText, btnClass] = labels[state] || labels['auth-off'];
+  el.className    = 'status ' + state;
+  el.textContent  = badge;
+  btn.textContent = btnText;
+  btn.className   = btnClass;
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
 function positionIndicator(pct) {
-  const indicatorRow = document.getElementById('indicatorRow');
-  const barTrack     = document.getElementById('barTrack');
-  const indicator    = document.getElementById('indicator');
-
-  const rowRect   = indicatorRow.getBoundingClientRect();
-  const trackRect = barTrack.getBoundingClientRect();
-
-  const trackLeftInRow = trackRect.left - rowRect.left;
-  const fillEndX       = trackLeftInRow + trackRect.width * pct;
-  const indW           = indicator.offsetWidth;
-
-  let left = fillEndX - indW;
-  left = Math.max(0, Math.min(left, rowRect.width - indW));
-  indicator.style.left = left + 'px';
+  const row   = document.getElementById('indicatorRow');
+  const track = document.getElementById('barTrack');
+  const ind   = document.getElementById('indicator');
+  const rR    = row.getBoundingClientRect();
+  const tR    = track.getBoundingClientRect();
+  const fillEndX = (tR.left - rR.left) + tR.width * pct;
+  let left = fillEndX - ind.offsetWidth;
+  left = Math.max(0, Math.min(left, rR.width - ind.offsetWidth));
+  ind.style.left = left + 'px';
 }
 
 function updateUI(subs) {
-  // Auto-advance nextMilestone if the current count has already passed it
   if (subs >= CONFIG.nextMilestone) {
     CONFIG.nextMilestone = nextRoundNumber(subs);
     saveConfig();
@@ -447,16 +593,163 @@ function updateUI(subs) {
   requestAnimationFrame(() => positionIndicator(pct));
 }
 
-// ── YouTube API ──────────────────────────────────────────────────
-async function fetchYouTubeSubs() {
-  const { youtubeChannelId, youtubeApiKey } = CONFIG;
+// ── OAuth — Device Authorization Flow ───────────────────────────
+// Lets you authenticate as the channel owner so YouTube returns the
+// exact subscriber count instead of the rounded public API number.
+
+async function getAccessToken() {
+  if (!CONFIG.oauthRefreshToken || !CONFIG.oauthClientId) return null;
+
+  // Return cached token if still valid (60s buffer)
+  if (oauth.accessToken && oauth.expiresAt > Date.now() + 60_000) {
+    return oauth.accessToken;
+  }
+
+  // Exchange refresh token for a new access token
   try {
-    const url  = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${youtubeChannelId}&key=${youtubeApiKey}`;
-    const res  = await fetch(url);
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     CONFIG.oauthClientId,
+        client_secret: CONFIG.oauthClientSecret,
+        refresh_token: CONFIG.oauthRefreshToken,
+        grant_type:    'refresh_token',
+      }),
+    });
+    const data = await res.json();
+    if (data.access_token) {
+      oauth.accessToken = data.access_token;
+      oauth.expiresAt   = Date.now() + data.expires_in * 1000;
+      return oauth.accessToken;
+    }
+    // Refresh token revoked / expired
+    CONFIG.oauthRefreshToken = '';
+    saveConfig();
+    setAuthBadge('auth-off');
+  } catch (e) {
+    console.warn('Token refresh failed:', e);
+  }
+  return null;
+}
+
+async function startOAuthFlow() {
+  if (!CONFIG.oauthClientId || !CONFIG.oauthClientSecret) {
+    alert('Enter your OAuth Client ID and Client Secret first.');
+    return;
+  }
+
+  setAuthBadge('auth-pending');
+
+  let deviceData;
+  try {
+    const res = await fetch('https://oauth2.googleapis.com/device/code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: CONFIG.oauthClientId,
+        scope: 'https://www.googleapis.com/auth/youtube.readonly',
+      }),
+    });
+    deviceData = await res.json();
+  } catch (e) {
+    alert('Could not reach Google — check your internet connection.');
+    setAuthBadge('auth-off');
+    return;
+  }
+
+  // Show the prompt
+  document.getElementById('authUrl').textContent  = deviceData.verification_url;
+  document.getElementById('authCode').textContent = deviceData.user_code;
+  document.getElementById('authWaiting').textContent = '⏳ Waiting for you to authorize…';
+  document.getElementById('authPrompt').classList.add('visible');
+
+  // Poll for the token
+  const interval = (deviceData.interval || 5) * 1000;
+  const deadline = Date.now() + deviceData.expires_in * 1000;
+
+  oauth.pollTimer = setInterval(async () => {
+    if (Date.now() > deadline) { cancelOAuth('Code expired. Try again.'); return; }
+
+    try {
+      const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id:     CONFIG.oauthClientId,
+          client_secret: CONFIG.oauthClientSecret,
+          device_code:   deviceData.device_code,
+          grant_type:    'urn:ietf:params:oauth:grant-type:device_code',
+        }),
+      });
+      const data = await res.json();
+
+      if (data.access_token) {
+        clearInterval(oauth.pollTimer);
+        oauth.accessToken = data.access_token;
+        oauth.expiresAt   = Date.now() + data.expires_in * 1000;
+        CONFIG.oauthRefreshToken = data.refresh_token;
+        saveConfig();
+        document.getElementById('authPrompt').classList.remove('visible');
+        setAuthBadge('auth-on');
+        startRefreshTimer();
+        refresh();
+      } else if (data.error === 'slow_down') {
+        clearInterval(oauth.pollTimer);
+        oauth.pollTimer = setInterval(arguments.callee, interval + 5000);
+      }
+      // 'authorization_pending' → keep polling
+    } catch (e) { /* network blip, keep polling */ }
+  }, interval);
+}
+
+function cancelOAuth(msg) {
+  clearInterval(oauth.pollTimer);
+  document.getElementById('authPrompt').classList.remove('visible');
+  if (msg) document.getElementById('authWaiting').textContent = msg;
+  setAuthBadge(CONFIG.oauthRefreshToken ? 'auth-on' : 'auth-off');
+}
+
+function disconnectOAuth() {
+  oauth.accessToken = '';
+  oauth.expiresAt   = 0;
+  CONFIG.oauthRefreshToken = '';
+  saveConfig();
+  setAuthBadge('auth-off');
+  setStatus('manual', 'Manual');
+  startRefreshTimer();
+}
+
+// ── YouTube fetch ────────────────────────────────────────────────
+async function fetchYouTubeSubs() {
+  // 1. Prefer OAuth — returns exact count as channel owner
+  const token = await getAccessToken();
+  if (token) {
+    try {
+      const res  = await fetch(
+        'https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true',
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (data.items?.[0]) {
+        return parseInt(data.items[0].statistics.subscriberCount, 10);
+      }
+    } catch (e) {
+      console.warn('OAuth fetch failed:', e);
+    }
+  }
+
+  // 2. Fall back to API key (rounds to 3 significant figures)
+  const { youtubeChannelId, youtubeApiKey } = CONFIG;
+  if (!youtubeChannelId || !youtubeApiKey) return null;
+  try {
+    const res  = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${youtubeChannelId}&key=${youtubeApiKey}`
+    );
     const data = await res.json();
     return parseInt(data.items[0].statistics.subscriberCount, 10);
   } catch (e) {
-    console.warn('YouTube fetch failed:', e);
+    console.warn('API key fetch failed:', e);
     return null;
   }
 }
@@ -465,30 +758,35 @@ let refreshTimer = null;
 
 function startRefreshTimer() {
   if (refreshTimer) clearInterval(refreshTimer);
-  if (CONFIG.youtubeChannelId && CONFIG.youtubeApiKey) {
+  const hasOAuth  = CONFIG.oauthRefreshToken && CONFIG.oauthClientId;
+  const hasApiKey = CONFIG.youtubeChannelId  && CONFIG.youtubeApiKey;
+  if (hasOAuth || hasApiKey) {
     refreshTimer = setInterval(refresh, Math.max(10, CONFIG.refreshSeconds) * 1000);
   }
 }
 
 async function refresh() {
+  const hasOAuth  = CONFIG.oauthRefreshToken && CONFIG.oauthClientId;
+  const hasApiKey = CONFIG.youtubeChannelId  && CONFIG.youtubeApiKey;
+
   let subs = CONFIG.currentSubs;
-  if (CONFIG.youtubeChannelId && CONFIG.youtubeApiKey) {
+
+  if (hasOAuth || hasApiKey) {
     setStatus('loading', 'Fetching…');
     const live = await fetchYouTubeSubs();
     if (live !== null) {
-      // YouTube API rounds to 3 significant figures — never let it go below
-      // the manually entered count (which the user knows is exact)
-      subs = Math.max(live, CONFIG.currentSubs);
-      // If API returned something higher, update currentSubs so it tracks forward
+      // With OAuth: exact — use directly.
+      // With API key only: rounded — never go below manual count.
+      subs = hasOAuth ? live : Math.max(live, CONFIG.currentSubs);
       if (subs > CONFIG.currentSubs) {
         CONFIG.currentSubs = subs;
         saveConfig();
         const el = document.getElementById('c-subs');
         if (el) el.value = subs;
       }
-      setStatus('live', `Live · ${fmt(subs)}`);
+      setStatus('live', `Live · ${fmt(subs)}${hasOAuth ? '' : ' (approx)'}`);
     } else {
-      setStatus('error', 'API Error');
+      setStatus('error', 'Fetch Error');
     }
   } else {
     setStatus('manual', 'Manual');
@@ -499,31 +797,46 @@ async function refresh() {
 // ── Console wiring ───────────────────────────────────────────────
 function initConsole() {
   const bindings = [
-    { id: 'c-start',   key: 'startMilestone',   parse: Number },
-    { id: 'c-end',     key: 'endMilestone',     parse: Number },
-    { id: 'c-next',    key: 'nextMilestone',    parse: Number },
-    { id: 'c-subs',    key: 'currentSubs',      parse: Number },
-    { id: 'c-pic',     key: 'profilePicUrl',    parse: String },
-    { id: 'c-date',    key: 'date',             parse: String },
-    { id: 'c-refresh', key: 'refreshSeconds',   parse: Number },
-    { id: 'c-channel', key: 'youtubeChannelId', parse: String },
-    { id: 'c-apikey',  key: 'youtubeApiKey',    parse: String },
+    { id: 'c-start',        key: 'startMilestone',   parse: Number },
+    { id: 'c-end',          key: 'endMilestone',     parse: Number },
+    { id: 'c-next',         key: 'nextMilestone',    parse: Number },
+    { id: 'c-subs',         key: 'currentSubs',      parse: Number },
+    { id: 'c-pic',          key: 'profilePicUrl',    parse: String },
+    { id: 'c-date',         key: 'date',             parse: String },
+    { id: 'c-refresh',      key: 'refreshSeconds',   parse: Number },
+    { id: 'c-channel',      key: 'youtubeChannelId', parse: String },
+    { id: 'c-apikey',       key: 'youtubeApiKey',    parse: String },
+    { id: 'c-clientid',     key: 'oauthClientId',    parse: String },
+    { id: 'c-clientsecret', key: 'oauthClientSecret',parse: String },
   ];
 
   for (const { id, key, parse } of bindings) {
     const el = document.getElementById(id);
     if (!el) continue;
-    el.value = CONFIG[key];                       // populate from loaded config
+    el.value = CONFIG[key];
     el.addEventListener('input', () => {
       const raw = el.value.trim();
       if (raw !== '') CONFIG[key] = parse(raw);
       saveConfig();
-      startRefreshTimer();                        // restart timer if interval changed
+      startRefreshTimer();
       refresh();
     });
   }
 
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
+
+  document.getElementById('btnConnect')?.addEventListener('click', () => {
+    if (CONFIG.oauthRefreshToken) {
+      disconnectOAuth();
+    } else {
+      startOAuthFlow();
+    }
+  });
+
+  document.getElementById('btnCancelAuth')?.addEventListener('click', () => cancelOAuth());
+
+  // Restore auth badge state from saved token
+  if (CONFIG.oauthRefreshToken) setAuthBadge('auth-on');
 }
 
 // ── Boot ─────────────────────────────────────────────────────────

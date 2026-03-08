@@ -30,22 +30,61 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 <!-- CONFIG_TABLE_START -->
 | Key | Default | Description |
 |-----|---------|-------------|
-| `currentSubs` | `324582` |  |
-| `startMilestone` | `300000` |  |
-| `endMilestone` | `400000` |  |
-| `nextMilestone` | `325000` |  |
-| `profilePicUrl` | `'profile.jpg'` |  |
-| `date` | `'08/10/2025'` |  |
-| `youtubeChannelId` | `''` |  |
-| `youtubeApiKey` | `''` |  |
-| `refreshSeconds` | `60` |  |
+| `currentSubs` | `34686` | Manual sub count (exact fallback) |
+| `startMilestone` | `30000` | Left end of bar |
+| `endMilestone` | `40000` | Right end of bar |
+| `nextMilestone` | `35000` | Next milestone to reach |
+| `profilePicUrl` | `'profile.jpg'` | Local filename or URL |
+| `date` | `'08/10/2025'` | Shown bottom-left (MM/DD/YYYY) |
+| `youtubeChannelId` | `''` | Channel ID for approximate API-key count |
+| `youtubeApiKey` | `''` | YouTube Data API v3 key (approximate ±100) |
+| `oauthClientId` | `''` | OAuth Client ID for exact count |
+| `oauthClientSecret` | `''` | OAuth Client Secret |
+| `oauthRefreshToken` | `''` | Stored after first auth — keep private |
+| `refreshSeconds` | `60` | How often to poll YouTube |
 <!-- CONFIG_TABLE_END -->
 
-## YouTube Live Sub Count (optional)
+## Getting an Exact Sub Count (OAuth — recommended)
 
-Fill in `youtubeChannelId` and `youtubeApiKey` to have the bar auto-update
-every `refreshSeconds`. Without these, update `currentSubs` manually and
-reload the browser source.
+YouTube's public API rounds subscriber counts to 3 significant figures
+(e.g. 34,686 → 34,600). Authenticating as the channel owner returns the
+exact number. This is a one-time setup.
+
+### Step 1 — Create OAuth credentials
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services** → **Credentials**
+2. Click **Create Credentials** → **OAuth client ID**
+3. Application type: **TVs and Limited Input devices**
+4. Name it anything (e.g. "Sub Bar")
+5. Copy the **Client ID** and **Client Secret** into the console
+
+### Step 2 — Enable the YouTube Data API
+
+In Google Cloud Console → **APIs & Services** → **Library**, search for
+**YouTube Data API v3** and enable it.
+
+### Step 3 — Connect in the console
+
+1. Paste your Client ID and Client Secret into the bottom row of the control console
+2. Click **Connect YT Account**
+3. Visit the URL shown and enter the code — takes about 10 seconds
+4. The badge turns **● Connected ✓** and the bar starts showing exact counts
+
+The refresh token is saved to `localStorage` — you only need to do this once per browser/device.
+
+---
+
+## Approximate Count (API key — no auth needed)
+
+Fill in `youtubeChannelId` and `youtubeApiKey` for a count that updates
+automatically but rounds to the nearest ~100. Useful as a fallback.
+
+**Get an API key:**
+1. [Google Cloud Console](https://console.cloud.google.com) → **Credentials** → **Create API Key**
+2. Restrict it to **YouTube Data API v3**
+
+**Find your Channel ID:**
+YouTube Studio → **Customization** → **Basic info** → Channel URL / ID at the bottom.
 
 **Get an API key:**
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
