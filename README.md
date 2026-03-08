@@ -11,10 +11,11 @@ and countdown to the next milestone.
 3. Set **Width: 1280** and **Height: 110**
 4. Enable **"Shutdown source when not visible"** and **"Refresh browser when scene becomes active"**
 
-> **Transparent background:** In the Browser Source properties, paste the following
-> into the *Custom CSS* box to make the overlay background transparent:
+> **Transparent background:** The HTML file has a dark page background so it's
+> visible when testing in Safari/Chrome. In OBS, add this to the Browser Source
+> *Custom CSS* box to restore transparency (so only the rounded bar shows on stream):
 > ```css
-> body { background-color: rgba(0, 0, 0, 0) !important; }
+> html, body { background: transparent !important; }
 > ```
 
 ## Profile Picture

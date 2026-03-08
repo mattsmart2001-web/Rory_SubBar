@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="color-scheme" content="dark">
   <title>Sub Bar Overlay</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html {
+      background: #0a1020; /* dark canvas — visible in browsers; OBS: see README */
+    }
 
     body {
       width: 1280px;
@@ -141,21 +146,25 @@
     .console {
       width: 1280px;
       margin-top: 8px;
-      background: #141e36;
+      background: #1a2d52;
       border-radius: 10px;
-      border: 1px solid #2a3860;
-      padding: 10px 14px 12px;
+      border: 2px solid #2e4a82;
+      padding: 0 14px 12px;
     }
 
     .console-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 9px;
+      background: #152340;
+      border-radius: 8px 8px 0 0;
+      margin: 0 -14px 10px;
+      padding: 7px 14px;
+      border-bottom: 1px solid #2e4a82;
     }
 
     .console-title {
-      color: #5888ee;
+      color: #5ee8fc;
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 1.8px;
@@ -163,7 +172,7 @@
     }
 
     .console-tip {
-      color: #3a5070;
+      color: #7898c0;
       font-size: 10px;
       font-style: italic;
     }
@@ -176,7 +185,7 @@
 
     .field label {
       display: block;
-      color: #5878aa;
+      color: #90b8e8;
       font-size: 9.5px;
       font-weight: 700;
       text-transform: uppercase;
@@ -186,22 +195,22 @@
 
     .field input {
       width: 100%;
-      background: #0c1526;
-      border: 1px solid #253560;
+      background: #0e1e3a;
+      border: 1px solid #3a5898;
       border-radius: 4px;
       padding: 5px 8px;
-      color: #c8d8ff;
+      color: #d8eaff;
       font-size: 12px;
       outline: none;
       transition: border-color 0.15s;
     }
 
     .field input:focus {
-      border-color: #5888ee;
-      background: #111e38;
+      border-color: #5ee8fc;
+      background: #122040;
     }
 
-    .field input::placeholder { color: #2e4060; }
+    .field input::placeholder { color: #4a6890; }
 
     .field-span2 { grid-column: span 2; }
 
@@ -216,10 +225,10 @@
     }
 
     .btn-refresh {
-      background: #1e3468;
-      border: 1px solid #3a5898;
+      background: #1e3a78;
+      border: 1px solid #5e88d8;
       border-radius: 4px;
-      color: #a0c0ff;
+      color: #c8e0ff;
       font-size: 11px;
       font-weight: 700;
       padding: 0 14px;
@@ -238,7 +247,7 @@
       white-space: nowrap;
     }
 
-    .status.manual  { color: #5a7a9a; }
+    .status.manual  { color: #7898c0; }
     .status.loading { color: #aaaaaa; }
     .status.live    { color: #40dd80; }
     .status.error   { color: #ee5040; }
