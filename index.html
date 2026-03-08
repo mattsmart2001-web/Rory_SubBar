@@ -372,6 +372,21 @@
       </div>
     </div>
 
+    <hr class="console-divider">
+
+    <!-- Row 6: StreamElements JWT (exact count) -->
+    <div class="field field-span3">
+      <label>StreamElements JWT — EXACT count (streamelements.com → Account → App Access Token)</label>
+      <input id="c-se-jwt" type="password" placeholder="eyJ…">
+    </div>
+    <div class="field actions-cell">
+      <label>​</label>
+      <div class="console-actions">
+        <button class="btn-action btn-disconnect" id="btnClearSE">✕ Clear</button>
+        <span class="status auth-off" id="seBadge">● Not connected</span>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -388,9 +403,10 @@ const DEFAULTS = {
   profilePicUrl:    'profile.jpg', // Local filename or URL
   youtubeChannelId: '',           // Channel ID for approximate API-key count
   youtubeApiKey:    '',           // YouTube Data API v3 key (approximate ±100)
-  oauthClientId:    '',           // OAuth Client ID for exact count
+  oauthClientId:    '',           // OAuth Client ID for approximate count
   oauthClientSecret: '',          // OAuth Client Secret
   oauthRefreshToken: '',          // Stored after first auth — keep private
+  streamElementsJwt: '',          // StreamElements JWT — gives exact count
   refreshSeconds:   60,           // How often to poll YouTube
 };
 
@@ -439,6 +455,13 @@ function setAuthBadge(state) {
   if (!el) return;
   el.className   = 'status ' + state;
   el.textContent = state === 'auth-on' ? '● Token active ✓' : '● No token';
+}
+
+function setSeBadge(state) {
+  const el = document.getElementById('seBadge');
+  if (!el) return;
+  el.className   = 'status ' + state;
+  el.textContent = state === 'auth-on' ? '● Connected ✓' : '● Not connected';
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
@@ -545,36 +568,82 @@ async function fetchYouTubeSubs() {
   }
 }
 
+// ── StreamElements fetch (exact count) ───────────────────────────
+async function fetchStreamElementsSubs() {
+  if (!CONFIG.streamElementsJwt) return null;
+  try {
+    const res = await fetch('https://api.streamelements.com/kappa/v2/channels/me', {
+      headers: { Authorization: `Bearer ${CONFIG.streamElementsJwt}` }
+    });
+    if (!res.ok) { setSeBadge('auth-off'); return null; }
+    const data = await res.json();
+    const count = data?.youtube?.subscriberCount
+               ?? data?.youtube?.subscribers
+               ?? data?.subscribers
+               ?? data?.subscriber_count;
+    if (count != null) { setSeBadge('auth-on'); return parseInt(count, 10); }
+    console.warn('StreamElements: no sub count in response', data);
+    setSeBadge('auth-off');
+    return null;
+  } catch (e) {
+    console.warn('StreamElements fetch failed:', e);
+    setSeBadge('auth-off');
+    return null;
+  }
+}
+
 let refreshTimer = null;
 
 function startRefreshTimer() {
   if (refreshTimer) clearInterval(refreshTimer);
+  const hasSE     = !!CONFIG.streamElementsJwt;
   const hasOAuth  = CONFIG.oauthRefreshToken && CONFIG.oauthClientId;
   const hasApiKey = CONFIG.youtubeChannelId  && CONFIG.youtubeApiKey;
-  if (hasOAuth || hasApiKey) {
+  if (hasSE || hasOAuth || hasApiKey) {
     refreshTimer = setInterval(refresh, Math.max(10, CONFIG.refreshSeconds) * 1000);
   }
 }
 
 async function refresh() {
+  const hasSE     = !!CONFIG.streamElementsJwt;
   const hasOAuth  = CONFIG.oauthRefreshToken && CONFIG.oauthClientId;
   const hasApiKey = CONFIG.youtubeChannelId  && CONFIG.youtubeApiKey;
 
   let subs = CONFIG.currentSubs;
 
-  if (hasOAuth || hasApiKey) {
+  if (hasSE || hasOAuth || hasApiKey) {
     setStatus('loading', 'Fetching…');
-    const live = await fetchYouTubeSubs();
+    let live  = null;
+    let exact = false;
+
+    if (hasSE) {
+      live  = await fetchStreamElementsSubs();
+      exact = live !== null;
+    }
+    if (live === null && (hasOAuth || hasApiKey)) {
+      live = await fetchYouTubeSubs();
+    }
+
     if (live !== null) {
-      // API always rounds for large channels — never go below the known manual count.
-      subs = Math.max(live, CONFIG.currentSubs);
-      if (subs > CONFIG.currentSubs) {
+      if (exact) {
+        // StreamElements: exact — update directly (can go up or down)
+        subs = live;
         CONFIG.currentSubs = subs;
         saveConfig();
         const el = document.getElementById('c-subs');
         if (el) el.value = subs;
+        setStatus('live', `Live · ${fmt(subs)}`);
+      } else {
+        // YouTube API: approximate — never go below manual count
+        subs = Math.max(live, CONFIG.currentSubs);
+        if (subs > CONFIG.currentSubs) {
+          CONFIG.currentSubs = subs;
+          saveConfig();
+          const el = document.getElementById('c-subs');
+          if (el) el.value = subs;
+        }
+        setStatus('live', `Live · ${fmt(subs)} (approx)`);
       }
-      setStatus('live', `Live · ${fmt(subs)} (approx)`);
     } else {
       setStatus('error', 'Fetch Error');
     }
@@ -639,6 +708,30 @@ function initConsole() {
   });
 
   if (CONFIG.oauthRefreshToken) setAuthBadge('auth-on');
+
+  // StreamElements JWT
+  const seEl = document.getElementById('c-se-jwt');
+  if (seEl) {
+    seEl.value = CONFIG.streamElementsJwt;
+    seEl.addEventListener('input', () => {
+      CONFIG.streamElementsJwt = seEl.value.trim();
+      saveConfig();
+      setSeBadge(CONFIG.streamElementsJwt ? 'auth-on' : 'auth-off');
+      startRefreshTimer();
+      refresh();
+    });
+  }
+
+  document.getElementById('btnClearSE')?.addEventListener('click', () => {
+    CONFIG.streamElementsJwt = '';
+    saveConfig();
+    if (seEl) seEl.value = '';
+    setSeBadge('auth-off');
+    startRefreshTimer();
+    refresh();
+  });
+
+  if (CONFIG.streamElementsJwt) setSeBadge('auth-on');
 }
 
 // ── Boot ─────────────────────────────────────────────────────────
