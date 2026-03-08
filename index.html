@@ -362,7 +362,7 @@
 
     <!-- Row 5: Refresh token (paste from OAuth Playground) -->
     <div class="field field-span3">
-      <label>Refresh Token — get from OAuth Playground with yt-analytics.readonly scope (see README)</label>
+      <label>Refresh Token — get from OAuth Playground with youtube.readonly scope (see README)</label>
       <input id="c-refreshtoken" type="password" placeholder="1//0g… paste here">
     </div>
     <div class="field actions-cell">
@@ -513,21 +513,20 @@ async function getAccessToken() {
 
 // ── YouTube fetch ────────────────────────────────────────────────
 async function fetchYouTubeSubs() {
-  // 1. Prefer OAuth — YouTube Analytics API returns exact (unrounded) counts
+  // 1. Prefer OAuth — Data API with mine=true returns exact count for channel owner
   const token = await getAccessToken();
   if (token) {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const res   = await fetch(
-        `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${today}&endDate=${today}&metrics=subscriberCount`,
+      const res  = await fetch(
+        'https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true',
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
-      if (data.rows?.[0]?.[0] != null) {
-        return parseInt(data.rows[0][0], 10);
+      if (data.items?.[0]?.statistics?.subscriberCount != null) {
+        return parseInt(data.items[0].statistics.subscriberCount, 10);
       }
     } catch (e) {
-      console.warn('Analytics fetch failed:', e);
+      console.warn('OAuth fetch failed:', e);
     }
   }
 
