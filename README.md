@@ -38,9 +38,6 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 | `date` | `'08/10/2025'` | Shown bottom-left (MM/DD/YYYY) |
 | `youtubeChannelId` | `''` | Channel ID for approximate API-key count |
 | `youtubeApiKey` | `''` | YouTube Data API v3 key (approximate ±100) |
-| `oauthClientId` | `''` | OAuth Client ID for exact count |
-| `oauthClientSecret` | `''` | OAuth Client Secret |
-| `oauthRefreshToken` | `''` | Stored after first auth — keep private |
 | `refreshSeconds` | `60` | How often to poll YouTube |
 <!-- CONFIG_TABLE_END -->
 
