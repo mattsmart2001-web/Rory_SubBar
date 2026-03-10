@@ -109,7 +109,7 @@
       if (Array.from(el.children).some(c => /^subscribers?$/i.test(c.textContent.trim()))) continue;
 
       let node = el;
-      for (let lvl = 0; lvl < 8; lvl++) {
+      for (let lvl = 0; lvl < 3; lvl++) {
         node = node.parentElement;
         if (!node) break;
         for (const c of node.querySelectorAll('*')) {
