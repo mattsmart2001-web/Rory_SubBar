@@ -553,14 +553,15 @@ function startRefreshTimer() {
 
 async function refresh() {
   let fillPct = 0;
+  let count = null;
   if (CONFIG.streamElementsJwt) {
-    const count = await fetchStreamElementsSubs();
+    count = await fetchStreamElementsSubs();
     if (count !== null) {
       fillPct = (count - CONFIG.startMilestone)
               / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
     }
   }
-  updateUI(fillPct);
+  updateUI(fillPct, count);
 }
 
 // ── Console wiring ───────────────────────────────────────────────
@@ -668,9 +669,11 @@ function initConsole() {
 
 // ── Static sub display ───────────────────────────────────────────
 function updateStaticSubDisplay() {
-  const el = document.getElementById('staticSubCount');
-  if (!el) return;
-  el.textContent = '';
+  const count = CONFIG.staticSubCount;
+  if (!count) return;
+  const fillPct = (count - CONFIG.startMilestone)
+                / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
+  updateUI(fillPct, count);
 }
 
 // ── Notification queue ───────────────────────────────────────────
