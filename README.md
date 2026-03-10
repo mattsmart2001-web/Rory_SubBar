@@ -41,8 +41,6 @@ The bar will update automatically on the interval set in **Auto-refresh (seconds
 Everything is configurable from the panel inside `index.html` — no code editing needed.
 In OBS, alt-drag the **bottom edge** of the browser source upward to crop out the console so only the bar shows on stream.
 
-| Field | What it does |
-|-------|-------------|
 <!-- CONFIG_TABLE_START -->
 | Key | Default | Description |
 |-----|---------|-------------|
