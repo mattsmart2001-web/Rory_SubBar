@@ -24,15 +24,45 @@ To use a different name or URL, update the **Profile Pic** field in the control 
 
 ---
 
-## Connecting StreamElements (live count)
+## Live Sub Count Setup
 
-The bar positions itself using your live member count pulled from StreamElements.
+The exact member count flows like this:
+
+```
+YouTube Studio  →  Tampermonkey script  →  Streamer.bot  →  OBS overlay
+```
+
+### 1 — Install Tampermonkey
+
+Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension, then:
+
+1. Open Tampermonkey → **Create a new script**
+2. Delete the placeholder and paste the full contents of `tampermonkey/yt-studio-subs.user.js`
+3. Save (Ctrl+S)
+
+The script runs on `studio.youtube.com`, reads your exact member count from the page, and sends it to Streamer.bot every time it changes (plus a fallback every 15 seconds).
+
+### 2 — Set up Streamer.bot
+
+1. In Streamer.bot, go to **Settings → Servers/Clients → HTTP Server** and make sure it's enabled on port **7474**
+2. Also enable the **WebSocket Server** on port **8080**
+3. Create an action named exactly **`Sub Count Update`**
+4. Add a **C# Execute Code** sub-action with this code:
+
+```csharp
+int count = int.Parse(args["subCount"].ToString());
+CPH.SendWebsocketMessage("{\"type\":\"subCount\",\"count\":" + count + "}", true);
+```
+
+That broadcasts the count over WebSocket to the overlay.
+
+### 3 — Connect StreamElements (for notifications)
+
+Member join/gift notifications come from StreamElements in real time.
 
 1. Go to [streamelements.com](https://streamelements.com) → your profile → **Show Secrets**
 2. Copy your **JWT token**
 3. Paste it into the **StreamElements JWT** field in the control console
-
-The bar will update automatically on the interval set in **Auto-refresh (seconds)**.
 
 ---
 
@@ -72,6 +102,8 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 
 ```
 Rory_SubBar/
-├── index.html        # OBS browser source — the whole overlay
-└── profile.jpg       # Your headshot (add this yourself)
+├── index.html                          # OBS browser source — the whole overlay
+├── profile.jpg                         # Your headshot (add this yourself)
+└── tampermonkey/
+    └── yt-studio-subs.user.js          # Tampermonkey script — reads Studio sub count → Streamer.bot
 ```
