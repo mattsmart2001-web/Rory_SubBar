@@ -846,12 +846,8 @@ function connectStreamerBot() {
     try { msg = JSON.parse(evt.data); } catch(_) { return; }
 
     if (msg.type === 'Hello') {
-      // Streamer.bot handshake — respond with Identify (no password assumed)
-      sbWs.send(JSON.stringify({
-        type: 'Identify',
-        id: '1',
-        request: { id: '1', name: 'SubBar Overlay', version: '0.1.0', subscriptions: 0 }
-      }));
+      // Streamer.bot handshake — correct format uses "request" key, not "type"
+      sbWs.send(JSON.stringify({ request: 'Identify', id: '1' }));
 
     } else if (msg.type === 'Connected') {
       const authed = msg.data?.authenticated ?? true;
@@ -860,16 +856,15 @@ function connectStreamerBot() {
         return;
       }
       setSbBadge('sb-on', 'connected — waiting for count');
-      // Ask for current value of the subCount global right away
-      sbWs.send(JSON.stringify({ type: 'Request', id: 'req-1', request: 'GetGlobals' }));
+      // Fetch current stored global immediately
+      sbWs.send(JSON.stringify({ request: 'GetGlobals', id: 'req-1' }));
 
     } else if (msg.type === 'GetGlobals' && Array.isArray(msg.data?.globals)) {
-      // Find subCount in the globals list
       const sc = msg.data.globals.find(g => g.name === 'subCount');
       if (sc) handleSbCount(parseInt(sc.value, 10));
 
     } else if (msg.subCount != null) {
-      // Raw broadcast: CPH.WebsocketBroadcastString("{\"subCount\":\"34732\"}", "")
+      // Raw broadcast from CPH.WebsocketBroadcastString("{\"subCount\":\"34732\"}")
       handleSbCount(parseInt(msg.subCount, 10));
     }
   };
