@@ -130,13 +130,16 @@
       try {
         const data = JSON.parse(e.detail);
         const count = deepFindSubCount(data, 0);
-        if (count !== null) send(count);
+        // API values are rounded to nearest 100 — only use as fallback if DOM hasn't sent yet
+        if (count !== null && lastSent === null) send(count);
       } catch (_) {}
     });
 
     // Periodic DOM fallback poll
     setInterval(domCheck, POLL_MS);
-    setTimeout(domCheck, 3000);
+    // Staggered checks — give the page time to render the exact number
+    setTimeout(domCheck, 4000);
+    setTimeout(domCheck, 9000);
   }
 
   // Run on initial load
@@ -148,6 +151,7 @@
 
   // Re-run on SPA URL changes (YouTube Studio navigates without full page reloads)
   window.onurlchange = function () {
-    setTimeout(domCheck, 3000);
+    setTimeout(domCheck, 4000);
+    setTimeout(domCheck, 9000);
   };
 })();
