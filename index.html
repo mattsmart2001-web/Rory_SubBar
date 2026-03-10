@@ -66,6 +66,54 @@
       transform: translateY(0);
     }
 
+    /* ── Combo row ────────────────────────────── */
+    .combo-row {
+      width: 1280px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .combo-text {
+      font-family: 'Eurostile', 'Arial Black', sans-serif;
+      font-weight: bold;
+      font-style: italic;
+      color: #e0f0ff;
+      font-size: 26px;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 18px rgba(94,232,252,0.5);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s ease, font-size 0.15s ease, color 0.15s ease, text-shadow 0.15s ease;
+    }
+
+    .combo-text.visible { opacity: 1; }
+
+    /* x5 – x9: gold */
+    .combo-text.hot {
+      color: #ffd060;
+      font-size: 32px;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 28px rgba(255,200,0,0.85);
+    }
+
+    /* x10+: fire */
+    .combo-text.fire {
+      color: #ff7040;
+      font-size: 40px;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9),
+                   0 0 30px rgba(255,100,0,0.9),
+                   0 0 60px rgba(255,40,0,0.55);
+    }
+
+    @keyframes combo-bump {
+      0%   { transform: scale(1); }
+      45%  { transform: scale(1.22); }
+      100% { transform: scale(1); }
+    }
+    .combo-text.bump { animation: combo-bump 0.28s ease; }
+
     .bar-row {
       display: flex;
       align-items: center;
@@ -328,6 +376,11 @@
   <span class="notif-text" id="notifText"></span>
 </div>
 
+<!-- ── COMBO ──────────────────────────────────────────────── -->
+<div class="combo-row">
+  <span class="combo-text" id="comboText"></span>
+</div>
+
 <!-- ── CONTROL CONSOLE ────────────────────────────────────
      OBS: alt-drag the bottom edge of this source upward
      to crop out this panel. The bar stays visible.
@@ -337,6 +390,7 @@
     <span class="console-title">⚙ Control Console</span>
     <span class="console-tip">OBS tip: alt-drag the bottom edge of this source upward to hide this panel</span>
     <button class="btn-action" id="btnTestNotif" style="margin-left:16px;white-space:nowrap;flex-shrink:0;">🔔 Test Notification</button>
+    <button class="btn-action" id="btnTestCombo" style="margin-left:8px;white-space:nowrap;flex-shrink:0;">⚡ Test Combo</button>
   </div>
 
   <div class="console-grid">
@@ -653,6 +707,8 @@ function initConsole() {
 
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
 
+  document.getElementById('btnTestCombo')?.addEventListener('click', () => addToCombo(1));
+
   const testMessages = [
     'RoryPlays has just subscribed!',
     'xXSniper99Xx has resubscribed for 6 months!',
@@ -696,6 +752,39 @@ function drainNotifQueue() {
     el.classList.remove('visible');
     setTimeout(drainNotifQueue, 450); // wait for fade-out
   }, 4500);
+}
+
+// ── Sub combo ────────────────────────────────────────────────────
+let comboCount = 0;
+let comboTimer = null;
+const COMBO_RESET_MS = 7000;
+
+function addToCombo(n) {
+  comboCount += n;
+  if (comboTimer) clearTimeout(comboTimer);
+  comboTimer = setTimeout(resetCombo, COMBO_RESET_MS);
+  updateComboDisplay();
+}
+
+function updateComboDisplay() {
+  if (comboCount < 2) return;
+  const el = document.getElementById('comboText');
+  if (!el) return;
+  el.textContent = `×${comboCount} SUB COMBO!`;
+  el.classList.remove('hot', 'fire');
+  if      (comboCount >= 10) el.classList.add('fire');
+  else if (comboCount >= 5)  el.classList.add('hot');
+  el.classList.add('visible');
+  // bump animation: remove then re-add to retrigger
+  el.classList.remove('bump');
+  requestAnimationFrame(() => el.classList.add('bump'));
+}
+
+function resetCombo() {
+  comboCount = 0;
+  comboTimer = null;
+  const el = document.getElementById('comboText');
+  if (el) el.classList.remove('visible', 'hot', 'fire', 'bump');
 }
 
 // ── Streamer.bot WebSocket ───────────────────────────────────────
@@ -751,8 +840,10 @@ function connectSESocket() {
         } else {
           showNotif(`${d.username} has just subscribed!`);
         }
+        addToCombo(1);
       } else if (type === 'communityGiftPurchase') {
         showNotif(`${d.username} gifted ${d.amount} subs to the community!`);
+        addToCombo(d.amount || 1);
       }
     });
 
