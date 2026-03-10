@@ -1,81 +1,28 @@
 // ==UserScript==
 // @name         YT Studio Sub Count → Streamer.bot
 // @namespace    rory-subbar
-// @version      1.1
+// @version      1.2
 // @description  Reads exact subscriber count from YouTube Studio and forwards to Streamer.bot
 // @match        https://studio.youtube.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  const SB_HTTP_PORT = 7474;           // Streamer.bot HTTP server port (Settings → Servers/Clients → HTTP Server)
-  const SB_ACTION    = 'Sub Count Update'; // Must match the action name in Streamer.bot exactly
-  const POLL_MS      = 15000;          // Re-check every 15 seconds as a fallback
+  const SB_HTTP_PORT = 7474;           // Streamer.bot HTTP server port
+  const SB_ACTION    = 'Sub Count Update'; // Must match action name in Streamer.bot exactly
+  const POLL_MS      = 15000;
 
   let lastSent = null;
 
-  // ── Parse a raw text string into a subscriber count ─────────────
-  function parseCount(raw) {
-    const s = raw.trim();
-
-    // Exact number: "34,247" or "34247"
-    const plain = s.replace(/[,\s]/g, '');
-    if (/^\d{3,9}$/.test(plain)) {
-      const n = parseInt(plain, 10);
-      if (n >= 100) return n;
-    }
-
-    // Abbreviated: "34.2K", "1.5M"
-    const abbr = s.match(/^([\d]+(?:\.[\d]+)?)\s*([KkMm])$/);
-    if (abbr) {
-      const mult = abbr[2].toUpperCase() === 'K' ? 1000 : 1000000;
-      const n = Math.round(parseFloat(abbr[1]) * mult);
-      if (n >= 100) return n;
-    }
-
-    return null;
-  }
-
-  // ── Find the subscriber count in the Studio DOM ──────────────────
-  // YouTube Studio uses custom elements (yt-formatted-string, ytcp-*)
-  // so we match on full textContent rather than direct text nodes only.
-  function findSubCount() {
-    for (const el of document.querySelectorAll('*')) {
-      const text = el.textContent.trim();
-
-      // Only target leaf-ish elements whose entire text is "Subscribers"
-      if (!/^subscribers?$/i.test(text)) continue;
-
-      // Skip ancestor elements that contain a child matching the same text
-      // (we want the innermost element, not its wrappers)
-      if (Array.from(el.children).some(c => /^subscribers?$/i.test(c.textContent.trim()))) continue;
-
-      // Walk up several levels looking for a container that also holds the count
-      let node = el;
-      for (let lvl = 0; lvl < 6; lvl++) {
-        node = node.parentElement;
-        if (!node) break;
-
-        for (const c of node.querySelectorAll('*')) {
-          if (c === el || c.contains(el) || c.children.length > 0) continue;
-          const n = parseCount(c.textContent);
-          if (n !== null) return n;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  // ── Send to Streamer.bot HTTP API ────────────────────────────────
+  // ── Send to Streamer.bot ─────────────────────────────────────────
   function send(count) {
     if (count === lastSent) return;
     lastSent = count;
     console.log(`[SubBar] Sending sub count ${count.toLocaleString()} → Streamer.bot`);
-
     GM_xmlhttpRequest({
       method:  'POST',
       url:     `http://127.0.0.1:${SB_HTTP_PORT}/DoAction`,
@@ -88,26 +35,93 @@
     });
   }
 
-  // ── Check and send ───────────────────────────────────────────────
-  function check() {
-    const count = findSubCount();
-    if (count !== null) {
-      send(count);
-    } else {
-      console.log('[SubBar] Sub count not found in DOM — waiting for dashboard content');
+  // ── Deep-search an object for a subscriber count value ───────────
+  // YouTube Studio API responses nest the count under various keys.
+  function deepFindSubCount(obj, depth) {
+    if (depth > 12 || !obj || typeof obj !== 'object') return null;
+    for (const [k, v] of Object.entries(obj)) {
+      // Key names seen in Studio API responses
+      if (/^subscriber_?count$/i.test(k) && (typeof v === 'string' || typeof v === 'number')) {
+        const n = parseInt(String(v).replace(/\D/g, ''), 10);
+        if (n >= 100) return n;
+      }
+      const found = deepFindSubCount(v, depth + 1);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+
+  // ── Inject a page-context fetch interceptor ──────────────────────
+  // Tampermonkey runs in a sandboxed scope; to hook window.fetch we
+  // must inject a <script> into the actual page and communicate back
+  // via a CustomEvent.
+  const injected = document.createElement('script');
+  injected.textContent = `(function () {
+    var _fetch = window.fetch;
+    window.fetch = async function () {
+      var res = await _fetch.apply(this, arguments);
+      var url = typeof arguments[0] === 'string'
+        ? arguments[0]
+        : (arguments[0] && arguments[0].url) || '';
+      // Only inspect Studio's own API calls
+      if (url.indexOf('/youtubei/') !== -1) {
+        res.clone().json().then(function (data) {
+          window.dispatchEvent(new CustomEvent('_subbar_data', { detail: JSON.stringify(data) }));
+        }).catch(function () {});
+      }
+      return res;
+    };
+  })();`;
+  (document.head || document.documentElement).appendChild(injected);
+  injected.remove();
+
+  // Listen for data relayed from the page context
+  window.addEventListener('_subbar_data', function (e) {
+    try {
+      const data = JSON.parse(e.detail);
+      const count = deepFindSubCount(data, 0);
+      if (count !== null) send(count);
+    } catch (_) {}
+  });
+
+  // ── Fallback: DOM scrape ─────────────────────────────────────────
+  function parseCount(raw) {
+    const s = raw.trim();
+    const plain = s.replace(/[,\s]/g, '');
+    if (/^\d{3,9}$/.test(plain)) {
+      const n = parseInt(plain, 10);
+      if (n >= 100) return n;
+    }
+    const abbr = s.match(/^([\d]+(?:\.[\d]+)?)\s*([KkMm])$/);
+    if (abbr) {
+      const mult = abbr[2].toUpperCase() === 'K' ? 1000 : 1000000;
+      const n = Math.round(parseFloat(abbr[1]) * mult);
+      if (n >= 100) return n;
+    }
+    return null;
+  }
+
+  function domCheck() {
+    for (const el of document.querySelectorAll('*')) {
+      const text = el.textContent.trim();
+      if (!/^subscribers?$/i.test(text)) continue;
+      if (Array.from(el.children).some(c => /^subscribers?$/i.test(c.textContent.trim()))) continue;
+
+      let node = el;
+      for (let lvl = 0; lvl < 8; lvl++) {
+        node = node.parentElement;
+        if (!node) break;
+        for (const c of node.querySelectorAll('*')) {
+          if (c === el || c.contains(el) || c.children.length > 0) continue;
+          const n = parseCount(c.textContent);
+          if (n !== null) { send(n); return; }
+        }
+      }
     }
   }
 
-  // Watch for DOM updates (Studio loads content dynamically)
-  let debounce = null;
-  new MutationObserver(() => {
-    clearTimeout(debounce);
-    debounce = setTimeout(check, 500);
-  }).observe(document.body, { childList: true, subtree: true });
-
-  // Periodic fallback poll
-  setInterval(check, POLL_MS);
-
-  // Initial check after the page has had time to render
-  setTimeout(check, 3000);
+  // Periodic DOM fallback poll (also keeps the bar alive if the API
+  // responses stop coming)
+  setInterval(domCheck, POLL_MS);
+  setTimeout(domCheck, 3000);
 })();
