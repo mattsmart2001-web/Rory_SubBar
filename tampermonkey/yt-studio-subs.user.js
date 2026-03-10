@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         YT Studio Sub Count → Streamer.bot
 // @namespace    rory-subbar
-// @version      1.2
+// @version      1.3
 // @description  Reads exact subscriber count from YouTube Studio and forwards to Streamer.bot
 // @match        https://studio.youtube.com/*
 // @include      *://studio.youtube.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
+// @grant        window.onurlchange
 // @connect      127.0.0.1
-// @run-at       document-idle
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
@@ -59,8 +60,9 @@
   // Tampermonkey runs in a sandboxed scope; to hook window.fetch we
   // must inject a <script> into the actual page and communicate back
   // via a CustomEvent.
-  const injected = document.createElement('script');
-  injected.textContent = `(function () {
+  function injectFetchHook() {
+    const injected = document.createElement('script');
+    injected.textContent = `(function () {
     var _fetch = window.fetch;
     window.fetch = async function () {
       var res = await _fetch.apply(this, arguments);
@@ -76,18 +78,9 @@
       return res;
     };
   })();`;
-  (document.head || document.documentElement).appendChild(injected);
-  injected.remove();
-
-  // Listen for data relayed from the page context
-  // Must use unsafeWindow — TM's sandboxed `window` is separate from the real page window
-  unsafeWindow.addEventListener('_subbar_data', function (e) {
-    try {
-      const data = JSON.parse(e.detail);
-      const count = deepFindSubCount(data, 0);
-      if (count !== null) send(count);
-    } catch (_) {}
-  });
+    (document.head || document.documentElement).appendChild(injected);
+    injected.remove();
+  }
 
   // ── Fallback: DOM scrape ─────────────────────────────────────────
   function parseCount(raw) {
@@ -125,8 +118,33 @@
     }
   }
 
-  // Periodic DOM fallback poll (also keeps the bar alive if the API
-  // responses stop coming)
-  setInterval(domCheck, POLL_MS);
-  setTimeout(domCheck, 3000);
+  function init() {
+    injectFetchHook();
+
+    // Listen for data relayed from the page context
+    // Must use unsafeWindow — TM's sandboxed `window` is separate from the real page window
+    unsafeWindow.addEventListener('_subbar_data', function (e) {
+      try {
+        const data = JSON.parse(e.detail);
+        const count = deepFindSubCount(data, 0);
+        if (count !== null) send(count);
+      } catch (_) {}
+    });
+
+    // Periodic DOM fallback poll
+    setInterval(domCheck, POLL_MS);
+    setTimeout(domCheck, 3000);
+  }
+
+  // Run on initial load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Re-run on SPA URL changes (YouTube Studio navigates without full page reloads)
+  window.onurlchange = function () {
+    setTimeout(domCheck, 3000);
+  };
 })();
