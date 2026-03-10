@@ -24,8 +24,11 @@
   let lastSent = null;
 
   // ── Send to Streamer.bot ─────────────────────────────────────────
-  function send(count) {
+  // exact=true means DOM-sourced precise value; always send over a rounded API value
+  function send(count, exact) {
     if (count === lastSent) return;
+    // Don't overwrite an exact value with a rounded one (API rounds to nearest 100)
+    if (!exact && lastSent !== null && Math.abs(count - lastSent) < 200) return;
     lastSent = count;
     console.log(`[SubBar] Sending sub count ${count.toLocaleString()} → Streamer.bot`);
     GM_xmlhttpRequest({
@@ -112,7 +115,7 @@
         for (const c of node.querySelectorAll('*')) {
           if (c === el || c.contains(el) || c.children.length > 0) continue;
           const n = parseCount(c.textContent);
-          if (n !== null) { send(n); return; }
+          if (n !== null) { send(n, true); return; }
         }
       }
     }
