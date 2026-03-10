@@ -808,10 +808,9 @@ function resetCombo() {
   if (el) el.classList.remove('visible', 'hot', 'fire', 'bump');
 }
 
-// ── Streamer.bot WebSocket ───────────────────────────────────────
-const SB_WS_PORT = 8080; // Streamer.bot WebSocket server port
-let sbSocket = null;
-let sbReconnectTimer = null;
+// ── Streamer.bot HTTP poll ───────────────────────────────────────
+const SB_HTTP_PORT = 7474;
+let sbPollTimer = null;
 
 function setSbBadge(state, label) {
   const el = document.getElementById('sbBadge');
@@ -820,39 +819,28 @@ function setSbBadge(state, label) {
   el.textContent = '● SB: ' + label;
 }
 
-function connectStreamerBot() {
-  if (sbSocket && sbSocket.readyState < 2) return;
-  setSbBadge('sb-off', 'connecting…');
+async function pollStreamerBot() {
   try {
-    sbSocket = new WebSocket(`ws://127.0.0.1:${SB_WS_PORT}/`);
-    sbSocket.onopen  = () => setSbBadge('sb-off', 'connected — waiting for count');
-    sbSocket.onmessage = evt => {
-      console.log('[SubBar] WS raw:', evt.data);
-      try {
-        const msg = JSON.parse(evt.data);
-        // Streamer.bot handshake: respond to Hello with Identify
-        if (msg.event && msg.event.type === 'Hello') {
-          sbSocket.send(JSON.stringify({ id: '1', request: 'Identify', authentication: null }));
-          return;
-        }
-        if (msg.type === 'subCount') {
-          const count = parseInt(msg.count, 10);
-          if (!isNaN(count) && count > 0) {
-            setSbBadge('sb-on', count.toLocaleString() + ' received');
-            const fillPct = (count - CONFIG.startMilestone)
-                          / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
-            updateUI(fillPct, count);
-          }
-        }
-      } catch (e) {}
-    };
-    sbSocket.onclose = sbSocket.onerror = () => {
-      sbSocket = null;
-      setSbBadge('sb-off', 'not reachable — retrying');
-      clearTimeout(sbReconnectTimer);
-      sbReconnectTimer = setTimeout(connectStreamerBot, 5000);
-    };
-  } catch (e) { setSbBadge('sb-off', 'error'); }
+    const res = await fetch(`http://127.0.0.1:${SB_HTTP_PORT}/GetGlobal?name=subCount`);
+    if (!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    const count = parseInt(data.value ?? data, 10);
+    if (!isNaN(count) && count > 0) {
+      setSbBadge('sb-on', count.toLocaleString() + ' received');
+      const fillPct = (count - CONFIG.startMilestone)
+                    / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
+      updateUI(fillPct, count);
+    }
+  } catch (e) {
+    setSbBadge('sb-off', 'not reachable — retrying');
+  }
+}
+
+function connectStreamerBot() {
+  setSbBadge('sb-off', 'connecting…');
+  pollStreamerBot();
+  if (sbPollTimer) clearInterval(sbPollTimer);
+  sbPollTimer = setInterval(pollStreamerBot, 10000);
 }
 
 // ── SE realtime socket ───────────────────────────────────────────
