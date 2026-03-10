@@ -37,6 +37,7 @@ Edit the `CONFIG` block near the bottom of `index.html`:
 | `barColor` | `'#5ee8fc'` | Bar fill colour |
 | `trackColor` | `'#2c3d5e'` | Unfilled slot colour |
 | `pillColor` | `'#2d3f6e'` | Background pill colour |
+| `subCountColor` | `'#5ee8fc'` | Sub counter number colour |
 | `streamElementsJwt` | `''` | SE JWT — positions the bar |
 | `refreshSeconds` | `60` | Auto-refresh interval |
 | `staticSubCount` | `0` | Static subscriber count shown under bar |
