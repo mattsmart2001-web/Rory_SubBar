@@ -287,11 +287,36 @@
 
     .field input::placeholder { color: #4a6890; }
 
-    .field input[type="color"] {
-      padding: 2px 4px;
-      height: 27px;
-      cursor: pointer;
+    /* colour field: swatch + hex text side by side */
+    .color-field-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
+
+    .color-swatch {
+      width: 27px;
+      height: 27px;
+      border-radius: 4px;
+      border: 1px solid #3a5898;
+      flex-shrink: 0;
+      cursor: default;
+    }
+
+    .color-hex {
+      flex: 1;
+      background: #0e1e3a;
+      border: 1px solid #3a5898;
+      border-radius: 4px;
+      padding: 5px 8px;
+      color: #d8eaff;
+      font-size: 12px;
+      outline: none;
+      font-family: monospace;
+      transition: border-color 0.15s;
+    }
+
+    .color-hex:focus { border-color: #5ee8fc; background: #122040; }
 
     .field-span2 { grid-column: span 2; }
 
@@ -412,21 +437,33 @@
     </div>
     <div class="field">
       <label>Bar Fill Colour</label>
-      <input id="c-barcolor" type="color" value="#5ee8fc">
+      <div class="color-field-wrap">
+        <div class="color-swatch" id="swatch-barcolor" style="background:#5ee8fc"></div>
+        <input class="color-hex" id="c-barcolor" type="text" value="#5ee8fc" maxlength="7" placeholder="#5ee8fc">
+      </div>
     </div>
 
     <!-- Row 2: colour pickers -->
     <div class="field">
       <label>Unfilled Slots Colour</label>
-      <input id="c-trackcolor" type="color" value="#2c3d5e">
+      <div class="color-field-wrap">
+        <div class="color-swatch" id="swatch-trackcolor" style="background:#2c3d5e"></div>
+        <input class="color-hex" id="c-trackcolor" type="text" value="#2c3d5e" maxlength="7" placeholder="#2c3d5e">
+      </div>
     </div>
     <div class="field">
       <label>Background Pill Colour</label>
-      <input id="c-pillcolor" type="color" value="#2d3f6e">
+      <div class="color-field-wrap">
+        <div class="color-swatch" id="swatch-pillcolor" style="background:#2d3f6e"></div>
+        <input class="color-hex" id="c-pillcolor" type="text" value="#2d3f6e" maxlength="7" placeholder="#2d3f6e">
+      </div>
     </div>
     <div class="field">
       <label>Sub Counter Colour</label>
-      <input id="c-subcountcolor" type="color" value="#5ee8fc">
+      <div class="color-field-wrap">
+        <div class="color-swatch" id="swatch-subcountcolor" style="background:#5ee8fc"></div>
+        <input class="color-hex" id="c-subcountcolor" type="text" value="#5ee8fc" maxlength="7" placeholder="#5ee8fc">
+      </div>
     </div>
     <div class="field">
       <label>Profile Pic — local filename or full URL</label>
@@ -645,45 +682,26 @@ function initConsole() {
     });
   }
 
-  const colorEl = document.getElementById('c-barcolor');
-  if (colorEl) {
-    colorEl.value = CONFIG.barColor;
-    colorEl.addEventListener('input', () => {
-      CONFIG.barColor = colorEl.value;
+  function wireColorField(inputId, swatchId, configKey, applyFn) {
+    const el     = document.getElementById(inputId);
+    const swatch = document.getElementById(swatchId);
+    if (!el) return;
+    el.value = CONFIG[configKey];
+    if (swatch) swatch.style.background = CONFIG[configKey];
+    el.addEventListener('input', () => {
+      const hex = el.value.trim();
+      if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+      CONFIG[configKey] = hex;
+      if (swatch) swatch.style.background = hex;
       saveConfig();
-      applyBarColor(CONFIG.barColor);
+      applyFn(hex);
     });
   }
 
-  const trackEl = document.getElementById('c-trackcolor');
-  if (trackEl) {
-    trackEl.value = CONFIG.trackColor;
-    trackEl.addEventListener('input', () => {
-      CONFIG.trackColor = trackEl.value;
-      saveConfig();
-      applyTrackColor(CONFIG.trackColor);
-    });
-  }
-
-  const pillEl = document.getElementById('c-pillcolor');
-  if (pillEl) {
-    pillEl.value = CONFIG.pillColor;
-    pillEl.addEventListener('input', () => {
-      CONFIG.pillColor = pillEl.value;
-      saveConfig();
-      applyPillColor(CONFIG.pillColor);
-    });
-  }
-
-  const subCountColorEl = document.getElementById('c-subcountcolor');
-  if (subCountColorEl) {
-    subCountColorEl.value = CONFIG.subCountColor;
-    subCountColorEl.addEventListener('input', () => {
-      CONFIG.subCountColor = subCountColorEl.value;
-      saveConfig();
-      applySubCountColor(CONFIG.subCountColor);
-    });
-  }
+  wireColorField('c-barcolor',      'swatch-barcolor',      'barColor',      applyBarColor);
+  wireColorField('c-trackcolor',    'swatch-trackcolor',    'trackColor',    applyTrackColor);
+  wireColorField('c-pillcolor',     'swatch-pillcolor',     'pillColor',     applyPillColor);
+  wireColorField('c-subcountcolor', 'swatch-subcountcolor', 'subCountColor', applySubCountColor);
 
   const seEl = document.getElementById('c-se-jwt');
   if (seEl) {
