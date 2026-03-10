@@ -146,14 +146,15 @@
 
     .live-count-pill {
       position: absolute;
-      top: 50%;
-      /* left is set to the same x as the profile pic;
-         translateX shifts it left by its own width + pic-radius (21px) + gap (6px) */
-      transform: translateY(-50%) translateX(calc(-100% - 27px));
+      /* hangs just below the bar container; 6px overlap gives a "tag" look */
+      top: calc(100% - 6px);
+      /* left = profile-pic centre (set by JS); -100% anchors the RIGHT edge there
+         so the pill grows leftward as the number gets longer */
+      transform: translateX(-100%);
       background: var(--pill-bg, rgba(45, 63, 110, 0.60));
       border: 1px solid rgba(94, 232, 252, 0.22);
-      border-radius: 10px;
-      padding: 3px 10px;
+      border-radius: 0 0 10px 10px;
+      padding: 4px 10px 5px;
       font-family: 'Eurostile', 'Arial Black', sans-serif;
       font-weight: bold;
       font-style: italic;
@@ -305,24 +306,6 @@
     .field-span3 { grid-column: span 3; }
     .field-span4 { grid-column: span 4; }
 
-    /* ════════════════════════════════════════
-       STATIC SUBS PILL
-    ════════════════════════════════════════ */
-    .static-pill {
-      background: var(--pill-bg, rgba(45, 63, 110, 0.60));
-      border-radius: 0 0 22px 22px;
-      width: 180px;
-      height: 36px;
-      margin: 0 auto;
-      overflow: hidden;
-      color: transparent;
-      font-size: 0;
-    }
-
-    .static-pill-label,
-    .static-pill-count {
-      display: none !important;
-    }
   </style>
 </head>
 <body>
@@ -339,9 +322,6 @@
     <img class="profile-pic" id="profilePic" src="" alt="streamer" style="left:0">
   </div>
 </div>
-
-<!-- ── STATIC SUBS PILL ──────────────────────────────────────── -->
-<div class="static-pill"></div>
 
 <!-- ── NOTIFICATIONS ──────────────────────────────────────── -->
 <div class="notif-row">
