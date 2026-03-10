@@ -68,8 +68,16 @@ This action receives the count from Tampermonkey and forwards it to the overlay.
 4. Paste this code and click **Save**:
 
 ```csharp
-int count = int.Parse(args["subCount"].ToString());
-CPH.SendWebsocketMessage("{\"type\":\"subCount\",\"count\":" + count + "}", true);
+using System;
+public class CPHInline
+{
+    public bool Execute()
+    {
+        int count = int.Parse(args["subCount"].ToString());
+        CPH.SendWebsocketMessage("{\"type\":\"subCount\",\"count\":" + count + "}", true);
+        return true;
+    }
+}
 ```
 
 ---
