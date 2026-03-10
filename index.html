@@ -710,10 +710,10 @@ function initConsole() {
   document.getElementById('btnTestCombo')?.addEventListener('click', () => addToCombo(1));
 
   const testMessages = [
-    'RoryPlays has just subscribed!',
-    'xXSniper99Xx has resubscribed for 6 months!',
-    'GiftKing gifted a sub to LuckyViewer!',
-    'MegaFan gifted 5 subs to the community!',
+    'RoryPlays has just joined as a member!',
+    'xXSniper99Xx has been a member for 6 months!',
+    'GiftKing gifted a membership to LuckyViewer!',
+    'MegaFan gifted 5 memberships to the community!',
   ];
   let testIdx = 0;
   document.getElementById('btnTestNotif')?.addEventListener('click', () => {
@@ -834,15 +834,15 @@ function connectSESocket() {
     seSocket.on('event', ({ type, data: d = {} }) => {
       if (type === 'subscriber') {
         if (d.gifted && d.sender) {
-          showNotif(`${d.sender} gifted a sub to ${d.username}!`);
+          showNotif(`${d.sender} gifted a membership to ${d.username}!`);
         } else if (d.amount > 1) {
-          showNotif(`${d.username} has resubscribed for ${d.amount} months!`);
+          showNotif(`${d.username} has been a member for ${d.amount} months!`);
         } else {
-          showNotif(`${d.username} has just subscribed!`);
+          showNotif(`${d.username} has just joined as a member!`);
         }
         addToCombo(1);
       } else if (type === 'communityGiftPurchase') {
-        showNotif(`${d.username} gifted ${d.amount} subs to the community!`);
+        showNotif(`${d.username} gifted ${d.amount} memberships to the community!`);
         addToCombo(d.amount || 1);
       }
     });
