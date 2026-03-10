@@ -74,7 +74,7 @@ public class CPHInline
     public bool Execute()
     {
         int count = int.Parse(args["subCount"].ToString());
-        CPH.SendWebsocketMessage("{\"type\":\"subCount\",\"count\":" + count + "}", true);
+        CPH.WebsocketBroadcastString("{\"type\":\"subCount\",\"count\":" + count + "}");
         return true;
     }
 }
