@@ -146,11 +146,10 @@
 
     .live-count-pill {
       position: absolute;
-      /* hangs just below the bar container; 6px overlap gives a "tag" look */
-      top: calc(100% - 6px);
-      /* left = profile-pic centre (set by JS); -100% anchors the RIGHT edge there
-         so the pill grows leftward as the number gets longer */
-      transform: translateX(-100%);
+      /* flat top flush with bar-track bottom (bar-row padding-bottom = 12px) */
+      top: calc(100% - 12px);
+      /* right edge sits 18px left of the profile-pic centre so it clears the pic */
+      transform: translateX(calc(-100% - 18px));
       background: var(--pill-bg, rgba(45, 63, 110, 0.60));
       border: 1px solid rgba(94, 232, 252, 0.22);
       border-radius: 0 0 10px 10px;
