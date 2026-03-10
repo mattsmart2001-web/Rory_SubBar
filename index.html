@@ -827,6 +827,7 @@ function connectStreamerBot() {
     sbSocket = new WebSocket(`ws://127.0.0.1:${SB_WS_PORT}/`);
     sbSocket.onopen  = () => setSbBadge('sb-off', 'connected — waiting for count');
     sbSocket.onmessage = evt => {
+      console.log('[SubBar] WS raw:', evt.data);
       try {
         const msg = JSON.parse(evt.data);
         // Streamer.bot handshake: respond to Hello with Identify
