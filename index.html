@@ -808,9 +808,10 @@ function resetCombo() {
   if (el) el.classList.remove('visible', 'hot', 'fire', 'bump');
 }
 
-// ── Streamer.bot HTTP poll ───────────────────────────────────────
-const SB_HTTP_PORT = 7474;
-let sbPollTimer = null;
+// ── Streamer.bot WebSocket ────────────────────────────────────────
+const SB_WS_PORT = 8080;
+let sbWs = null;
+let sbReconnectTimer = null;
 
 function setSbBadge(state, label) {
   const el = document.getElementById('sbBadge');
@@ -819,28 +820,67 @@ function setSbBadge(state, label) {
   el.textContent = '● SB: ' + label;
 }
 
-async function pollStreamerBot() {
-  try {
-    const res = await fetch(`http://127.0.0.1:${SB_HTTP_PORT}/GetGlobal?name=subCount`);
-    if (!res.ok) throw new Error('bad response');
-    const data = await res.json();
-    const count = parseInt(data.value ?? data, 10);
-    if (!isNaN(count) && count > 0) {
-      setSbBadge('sb-on', count.toLocaleString() + ' received');
-      const fillPct = (count - CONFIG.startMilestone)
-                    / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
-      updateUI(fillPct, count);
-    }
-  } catch (e) {
-    setSbBadge('sb-off', 'not reachable — retrying');
-  }
+function handleSbCount(count) {
+  if (isNaN(count) || count <= 0) return;
+  setSbBadge('sb-on', count.toLocaleString() + ' received');
+  const fillPct = (count - CONFIG.startMilestone)
+                / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
+  updateUI(fillPct, count);
 }
 
 function connectStreamerBot() {
+  if (sbWs) { try { sbWs.close(); } catch(_) {} sbWs = null; }
+  if (sbReconnectTimer) { clearTimeout(sbReconnectTimer); sbReconnectTimer = null; }
   setSbBadge('sb-off', 'connecting…');
-  pollStreamerBot();
-  if (sbPollTimer) clearInterval(sbPollTimer);
-  sbPollTimer = setInterval(pollStreamerBot, 10000);
+
+  try {
+    sbWs = new WebSocket(`ws://127.0.0.1:${SB_WS_PORT}/`);
+  } catch(e) {
+    setSbBadge('sb-off', 'not reachable — retrying in 15s');
+    sbReconnectTimer = setTimeout(connectStreamerBot, 15000);
+    return;
+  }
+
+  sbWs.onmessage = (evt) => {
+    let msg;
+    try { msg = JSON.parse(evt.data); } catch(_) { return; }
+
+    if (msg.type === 'Hello') {
+      // Streamer.bot handshake — respond with Identify (no password assumed)
+      sbWs.send(JSON.stringify({
+        type: 'Identify',
+        id: '1',
+        request: { id: '1', name: 'SubBar Overlay', version: '0.1.0', subscriptions: 0 }
+      }));
+
+    } else if (msg.type === 'Connected') {
+      const authed = msg.data?.authenticated ?? true;
+      if (!authed) {
+        setSbBadge('sb-off', 'auth failed — disable WS password in SB');
+        return;
+      }
+      setSbBadge('sb-on', 'connected — waiting for count');
+      // Ask for current value of the subCount global right away
+      sbWs.send(JSON.stringify({ type: 'Request', id: 'req-1', request: 'GetGlobals' }));
+
+    } else if (msg.type === 'GetGlobals' && Array.isArray(msg.data?.globals)) {
+      // Find subCount in the globals list
+      const sc = msg.data.globals.find(g => g.name === 'subCount');
+      if (sc) handleSbCount(parseInt(sc.value, 10));
+
+    } else if (msg.subCount != null) {
+      // Raw broadcast: CPH.WebsocketBroadcastString("{\"subCount\":\"34732\"}", "")
+      handleSbCount(parseInt(msg.subCount, 10));
+    }
+  };
+
+  sbWs.onerror = () => setSbBadge('sb-off', 'error — retrying in 15s');
+
+  sbWs.onclose = () => {
+    sbWs = null;
+    setSbBadge('sb-off', 'disconnected — retrying in 15s');
+    sbReconnectTimer = setTimeout(connectStreamerBot, 15000);
+  };
 }
 
 // ── SE realtime socket ───────────────────────────────────────────
