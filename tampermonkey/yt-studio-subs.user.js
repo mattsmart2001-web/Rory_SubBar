@@ -38,9 +38,20 @@
 
       for (const c of container.querySelectorAll('*')) {
         if (c === el || c.contains(el) || c.children.length > 0) continue;
-        const t = c.textContent.trim().replace(/[,\s]/g, '');
-        if (/^\d{3,9}$/.test(t)) {
-          const n = parseInt(t, 10);
+        const raw = c.textContent.trim();
+
+        // Exact number: "34,247" or "34247"
+        const plain = raw.replace(/[,\s]/g, '');
+        if (/^\d{3,9}$/.test(plain)) {
+          const n = parseInt(plain, 10);
+          if (n >= 100) return n;
+        }
+
+        // Abbreviated: "34.2K", "1.5M" (YouTube Studio rounds the dashboard display)
+        const abbr = raw.match(/^([\d]+(?:\.[\d]+)?)\s*([KkMm])$/);
+        if (abbr) {
+          const mult = abbr[2].toUpperCase() === 'K' ? 1000 : 1000000;
+          const n = Math.round(parseFloat(abbr[1]) * mult);
           if (n >= 100) return n;
         }
       }

@@ -342,6 +342,8 @@
     .status.error    { color: #ee5040; }
     .status.auth-off { color: #607090; }
     .status.auth-on  { color: #40dd80; }
+    .status.sb-off   { color: #607090; }
+    .status.sb-on    { color: #40dd80; }
 
     /* Divider between API-key row and OAuth row */
     .console-divider {
@@ -450,7 +452,8 @@
       <label>​</label>
       <div class="console-actions">
         <button class="btn-action btn-disconnect" id="btnClearSE">✕ Clear SE</button>
-        <span class="status auth-off" id="seBadge">● Not connected</span>
+        <span class="status auth-off" id="seBadge">● SE: not connected</span>
+        <span class="status sb-off" id="sbBadge">● SB: waiting</span>
         <button class="btn-action" id="btnRefresh">↻ Refresh</button>
       </div>
     </div>
@@ -504,7 +507,7 @@ function setSeBadge(state) {
   const el = document.getElementById('seBadge');
   if (!el) return;
   el.className   = 'status ' + state;
-  el.textContent = state === 'auth-on' ? '● Connected ✓' : '● Not connected';
+  el.textContent = state === 'auth-on' ? '● SE: connected ✓' : '● SE: not connected';
 }
 
 // ── StreamElements fetch ──────────────────────────────────────────
@@ -792,16 +795,26 @@ const SB_WS_PORT = 8080; // Streamer.bot WebSocket server port
 let sbSocket = null;
 let sbReconnectTimer = null;
 
+function setSbBadge(state, label) {
+  const el = document.getElementById('sbBadge');
+  if (!el) return;
+  el.className   = 'status ' + state;
+  el.textContent = '● SB: ' + label;
+}
+
 function connectStreamerBot() {
   if (sbSocket && sbSocket.readyState < 2) return;
+  setSbBadge('sb-off', 'connecting…');
   try {
     sbSocket = new WebSocket(`ws://127.0.0.1:${SB_WS_PORT}/`);
+    sbSocket.onopen  = () => setSbBadge('sb-off', 'connected — waiting for count');
     sbSocket.onmessage = evt => {
       try {
         const msg = JSON.parse(evt.data);
         if (msg.type === 'subCount') {
           const count = parseInt(msg.count, 10);
           if (!isNaN(count) && count > 0) {
+            setSbBadge('sb-on', count.toLocaleString() + ' received');
             const fillPct = (count - CONFIG.startMilestone)
                           / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
             updateUI(fillPct, count);
@@ -811,10 +824,11 @@ function connectStreamerBot() {
     };
     sbSocket.onclose = sbSocket.onerror = () => {
       sbSocket = null;
+      setSbBadge('sb-off', 'not reachable — retrying');
       clearTimeout(sbReconnectTimer);
       sbReconnectTimer = setTimeout(connectStreamerBot, 5000);
     };
-  } catch (e) {}
+  } catch (e) { setSbBadge('sb-off', 'error'); }
 }
 
 // ── SE realtime socket ───────────────────────────────────────────
