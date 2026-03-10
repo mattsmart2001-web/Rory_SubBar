@@ -144,6 +144,26 @@
       box-shadow: 0 0 6px rgba(0,0,0,0.7);
     }
 
+    .live-count-pill {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--pill-bg, rgba(45, 63, 110, 0.60));
+      border: 1px solid rgba(94, 232, 252, 0.22);
+      border-radius: 10px;
+      padding: 3px 10px;
+      font-family: 'Eurostile', 'Arial Black', sans-serif;
+      font-weight: bold;
+      font-style: italic;
+      font-size: 13px;
+      color: #5ee8fc;
+      text-shadow: 0 0 10px rgba(94, 232, 252, 0.35);
+      white-space: nowrap;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .live-count-pill:empty { display: none; }
+
     /* ════════════════════════════════════════
        CONTROL CONSOLE
     ════════════════════════════════════════ */
@@ -313,6 +333,7 @@
       <div class="bar-fill" id="barFill" style="width:0"></div>
     </div>
     <span class="milestone" id="endLabel"></span>
+    <div class="live-count-pill" id="liveCountPill"></div>
     <img class="profile-pic" id="profilePic" src="" alt="streamer" style="left:0">
   </div>
 </div>
@@ -495,20 +516,29 @@ function positionIndicator(pct) {
   const row   = document.getElementById('barRow');
   const track = document.getElementById('barTrack');
   const pic   = document.getElementById('profilePic');
+  const pill  = document.getElementById('liveCountPill');
   const rR    = row.getBoundingClientRect();
   const tR    = track.getBoundingClientRect();
   const trackLeft = tR.left - rR.left;
-  const x = trackLeft + tR.width * pct;
-  // clamp so pic stays within the track bounds
-  pic.style.left = Math.max(trackLeft, Math.min(x, trackLeft + tR.width)) + 'px';
+  const x = Math.max(trackLeft, Math.min(trackLeft + tR.width * pct, trackLeft + tR.width));
+  pic.style.left = x + 'px';
+  if (pill && pill.offsetWidth) {
+    const gap = 6;
+    const picRadius = pic.offsetWidth / 2;
+    pill.style.left = (x - picRadius - gap - pill.offsetWidth) + 'px';
+  }
 }
 
-function updateUI(fillPct) {
+function updateUI(fillPct, count) {
   const pct = Math.max(0, Math.min(1, fillPct / 100));
   document.getElementById('barFill').style.width    = pct * 100 + '%';
   document.getElementById('startLabel').textContent = fmtK(CONFIG.startMilestone);
   document.getElementById('endLabel').textContent   = fmtK(CONFIG.endMilestone);
   document.getElementById('profilePic').src         = CONFIG.profilePicUrl;
+  if (count != null) {
+    const pill = document.getElementById('liveCountPill');
+    if (pill) pill.textContent = count.toLocaleString();
+  }
   requestAnimationFrame(() => positionIndicator(pct));
 }
 
@@ -664,6 +694,36 @@ function drainNotifQueue() {
   }, 4500);
 }
 
+// ── Streamer.bot WebSocket ───────────────────────────────────────
+const SB_WS_PORT = 8080; // Streamer.bot WebSocket server port
+let sbSocket = null;
+let sbReconnectTimer = null;
+
+function connectStreamerBot() {
+  if (sbSocket && sbSocket.readyState < 2) return;
+  try {
+    sbSocket = new WebSocket(`ws://127.0.0.1:${SB_WS_PORT}/`);
+    sbSocket.onmessage = evt => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === 'subCount') {
+          const count = parseInt(msg.count, 10);
+          if (!isNaN(count) && count > 0) {
+            const fillPct = (count - CONFIG.startMilestone)
+                          / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
+            updateUI(fillPct, count);
+          }
+        }
+      } catch (e) {}
+    };
+    sbSocket.onclose = sbSocket.onerror = () => {
+      sbSocket = null;
+      clearTimeout(sbReconnectTimer);
+      sbReconnectTimer = setTimeout(connectStreamerBot, 5000);
+    };
+  } catch (e) {}
+}
+
 // ── SE realtime socket ───────────────────────────────────────────
 let seSocket = null;
 
@@ -719,6 +779,7 @@ window.addEventListener('load', () => {
   refresh();
   startRefreshTimer();
   connectSESocket();
+  connectStreamerBot();
 });
 </script>
 </body>
