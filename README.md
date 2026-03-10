@@ -1,6 +1,6 @@
-# Rory Sub Bar — OBS Overlay
+# Rory Sub Bar - OBS Overlay
 
-A YouTube membership progress bar overlay for OBS. Shows your live member count as a segmented bar between two milestones, with live notifications and a sub combo counter.
+A live sub bar & membership progress bar overlay for OBS. Shows your live member count as a segmented bar between two milestones, with live notifications and a sub combo counter.
 
 ---
 
