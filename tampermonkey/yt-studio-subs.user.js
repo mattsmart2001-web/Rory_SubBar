@@ -5,12 +5,15 @@
 // @description  Reads exact subscriber count from YouTube Studio and forwards to Streamer.bot
 // @match        https://studio.youtube.com/*
 // @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
 // @connect      127.0.0.1
 // @run-at       document-start
 // ==/UserScript==
 
 (function () {
   'use strict';
+
+  console.log('[SubBar] Script loaded v1.3');
 
   const SB_HTTP_PORT = 7474;           // Streamer.bot HTTP server port
   const SB_ACTION    = 'Sub Count Update'; // Must match action name in Streamer.bot exactly
@@ -76,7 +79,8 @@
   injected.remove();
 
   // Listen for data relayed from the page context
-  window.addEventListener('_subbar_data', function (e) {
+  // Must use unsafeWindow — TM's sandboxed `window` is separate from the real page window
+  unsafeWindow.addEventListener('_subbar_data', function (e) {
     try {
       const data = JSON.parse(e.detail);
       const count = deepFindSubCount(data, 0);
