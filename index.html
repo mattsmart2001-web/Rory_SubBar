@@ -147,7 +147,9 @@
     .live-count-pill {
       position: absolute;
       top: 50%;
-      transform: translateY(-50%);
+      /* left is set to the same x as the profile pic;
+         translateX shifts it left by its own width + pic-radius (21px) + gap (6px) */
+      transform: translateY(-50%) translateX(calc(-100% - 27px));
       background: var(--pill-bg, rgba(45, 63, 110, 0.60));
       border: 1px solid rgba(94, 232, 252, 0.22);
       border-radius: 10px;
@@ -521,12 +523,8 @@ function positionIndicator(pct) {
   const tR    = track.getBoundingClientRect();
   const trackLeft = tR.left - rR.left;
   const x = Math.max(trackLeft, Math.min(trackLeft + tR.width * pct, trackLeft + tR.width));
-  pic.style.left = x + 'px';
-  if (pill && pill.offsetWidth) {
-    const gap = 6;
-    const picRadius = pic.offsetWidth / 2;
-    pill.style.left = (x - picRadius - gap - pill.offsetWidth) + 'px';
-  }
+  pic.style.left  = x + 'px';
+  if (pill) pill.style.left = x + 'px';
 }
 
 function updateUI(fillPct, count) {
