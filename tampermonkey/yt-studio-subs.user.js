@@ -4,6 +4,7 @@
 // @version      1.2
 // @description  Reads exact subscriber count from YouTube Studio and forwards to Streamer.bot
 // @match        https://studio.youtube.com/*
+// @include      *://studio.youtube.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // @connect      127.0.0.1
