@@ -24,45 +24,76 @@ To use a different name or URL, update the **Profile Pic** field in the control 
 
 ---
 
-## Live Sub Count Setup
+## Full Setup
 
 The exact member count flows like this:
 
 ```
 YouTube Studio  →  Tampermonkey script  →  Streamer.bot  →  OBS overlay
+                                                ↑
+                                      (YouTube account connected
+                                       for membership events)
 ```
 
-### 1 — Install Tampermonkey
+---
 
-Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension, then:
+### Step 1 — Install Streamer.bot
 
-1. Open Tampermonkey → **Create a new script**
-2. Delete the placeholder and paste the full contents of `tampermonkey/yt-studio-subs.user.js`
-3. Save (Ctrl+S)
+1. Download and install [Streamer.bot](https://streamer.bot)
+2. Run it — it lives in the system tray while streaming
 
-The script runs on `studio.youtube.com`, reads your exact member count from the page, and sends it to Streamer.bot every time it changes (plus a fallback every 15 seconds).
+**Connect your YouTube account:**
 
-### 2 — Set up Streamer.bot
+1. In Streamer.bot, go to **Platforms → YouTube**
+2. Click **Connect** and sign in with your Google account
+3. The status should show your channel name in green
 
-1. In Streamer.bot, go to **Settings → Servers/Clients → HTTP Server** and make sure it's enabled on port **7474**
-2. Also enable the **WebSocket Server** on port **8080**
-3. Create an action named exactly **`Sub Count Update`**
-4. Add a **C# Execute Code** sub-action with this code:
+**Enable the servers the overlay needs:**
+
+1. Go to **Settings → Servers/Clients → HTTP Server**
+   - Check **Auto Start** and set port to **7474**
+2. Go to **Settings → Servers/Clients → WebSocket Server**
+   - Check **Auto Start** and set port to **8080**
+3. Click **Save** on each
+
+---
+
+### Step 2 — Create the Sub Count action
+
+This action receives the count from Tampermonkey and forwards it to the overlay.
+
+1. In Streamer.bot, go to **Actions** and click **+** to create a new action
+2. Name it exactly: **`Sub Count Update`**
+3. In the sub-actions panel, click **+** → **Core → C# → Execute Code**
+4. Paste this code and click **Save**:
 
 ```csharp
 int count = int.Parse(args["subCount"].ToString());
 CPH.SendWebsocketMessage("{\"type\":\"subCount\",\"count\":" + count + "}", true);
 ```
 
-That broadcasts the count over WebSocket to the overlay.
+---
 
-### 3 — Connect StreamElements (for notifications)
+### Step 3 — Install the Tampermonkey script
 
-Member join/gift notifications come from StreamElements in real time.
+The script runs in your browser on YouTube Studio and feeds the exact member count to Streamer.bot.
 
-1. Go to [streamelements.com](https://streamelements.com) → your profile → **Show Secrets**
-2. Copy your **JWT token**
-3. Paste it into the **StreamElements JWT** field in the control console
+1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension
+2. Open Tampermonkey → **Create a new script**
+3. Delete the placeholder and paste the full contents of `tampermonkey/yt-studio-subs.user.js`
+4. Save (Ctrl+S)
+
+From now on, keep a YouTube Studio tab open while streaming — the script will push the count to Streamer.bot automatically whenever it changes.
+
+---
+
+### Step 4 — Connect StreamElements (for notifications)
+
+New member, returning member, and gifted membership alerts come from StreamElements in real time.
+
+1. Go to [streamelements.com](https://streamelements.com) → click your profile picture → **Show Secrets**
+2. Copy the **JWT token**
+3. Paste it into the **StreamElements JWT** field in the overlay's control console
 
 ---
 
