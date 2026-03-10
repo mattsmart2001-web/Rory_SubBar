@@ -829,6 +829,11 @@ function connectStreamerBot() {
     sbSocket.onmessage = evt => {
       try {
         const msg = JSON.parse(evt.data);
+        // Streamer.bot handshake: respond to Hello with Identify
+        if (msg.event && msg.event.type === 'Hello') {
+          sbSocket.send(JSON.stringify({ id: '1', request: 'Identify', authentication: null }));
+          return;
+        }
         if (msg.type === 'subCount') {
           const count = parseInt(msg.count, 10);
           if (!isNaN(count) && count > 0) {
