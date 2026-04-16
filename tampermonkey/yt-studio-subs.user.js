@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YT Studio Sub Count → Streamer.bot
 // @namespace    rory-subbar
-// @version      1.5
+// @version      1.6
 // @description  Reads exact subscriber count from YouTube Studio and forwards to Streamer.bot
 // @match        https://studio.youtube.com/*
 // @include      *://studio.youtube.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  console.log('[SubBar] Script loaded v1.5');
+  console.log('[SubBar] Script loaded v1.6');
 
   const SB_HTTP_PORT = 7474;           // Streamer.bot HTTP server port
   const SB_ACTION    = 'Sub Count Update'; // Must match action name in Streamer.bot exactly
@@ -158,19 +158,42 @@
   }
 
   function domCheck() {
+    // Pass 1 — handle combined elements like "35,569\nSubscribers" or "35,569 Subscribers"
+    // YouTube Studio often renders the count and label in a single node.
+    for (const el of document.querySelectorAll('*')) {
+      if (el.children.length > 0) continue;  // leaf nodes only
+      const text = el.textContent.trim();
+      // Match "35,569 Subscribers", "35,569\nSubscribers", "35.5K Subscribers", etc.
+      const m = text.match(/^([\d,.\s]+(?:[KkMm])?)\s*[\n\r]+\s*subscribers?$|^([\d,.\s]+(?:[KkMm])?)\s+subscribers?$/i);
+      if (m) {
+        const raw = (m[1] || m[2]).trim();
+        const result = parseCount(raw);
+        if (result) {
+          console.log(`[SubBar] domCheck combined: "${text}" → ${result.n} (${result.exact ? 'exact' : 'approx'})`);
+          send(result.n, result.exact);
+          return;
+        }
+      }
+    }
+
+    // Pass 2 — split layout: separate "Subscribers" label with a sibling count element
     for (const el of document.querySelectorAll('*')) {
       const text = el.textContent.trim();
       if (!/^subscribers?$/i.test(text)) continue;
       if (Array.from(el.children).some(c => /^subscribers?$/i.test(c.textContent.trim()))) continue;
 
       let node = el;
-      for (let lvl = 0; lvl < 3; lvl++) {
+      for (let lvl = 0; lvl < 4; lvl++) {
         node = node.parentElement;
         if (!node) break;
         for (const c of node.querySelectorAll('*')) {
           if (c === el || c.contains(el) || c.children.length > 0) continue;
           const result = parseCount(c.textContent);
-          if (result !== null) { send(result.n, result.exact); return; }
+          if (result !== null) {
+            console.log(`[SubBar] domCheck split: found ${result.n} (${result.exact ? 'exact' : 'approx'})`);
+            send(result.n, result.exact);
+            return;
+          }
         }
       }
     }
