@@ -856,8 +856,15 @@ function connectStreamerBot() {
         return;
       }
       setSbBadge('sb-on', 'connected — waiting for count');
-      // Fetch current stored global immediately
-      sbWs.send(JSON.stringify({ request: 'GetGlobals', id: 'req-1' }));
+      // Fetch current stored global immediately, then poll every 10 s as a
+      // fallback in case the Streamer.bot action doesn't broadcast on each update.
+      const pollGlobals = () => {
+        if (sbWs && sbWs.readyState === WebSocket.OPEN)
+          sbWs.send(JSON.stringify({ request: 'GetGlobals', id: 'req-1' }));
+      };
+      pollGlobals();
+      if (sbWs._pollTimer) clearInterval(sbWs._pollTimer);
+      sbWs._pollTimer = setInterval(pollGlobals, 10000);
 
     } else if (msg.type === 'GetGlobals' && Array.isArray(msg.data?.globals)) {
       const sc = msg.data.globals.find(g => g.name === 'subCount');
@@ -872,6 +879,7 @@ function connectStreamerBot() {
   sbWs.onerror = () => setSbBadge('sb-off', 'error — retrying in 15s');
 
   sbWs.onclose = () => {
+    if (sbWs?._pollTimer) { clearInterval(sbWs._pollTimer); }
     sbWs = null;
     setSbBadge('sb-off', 'disconnected — retrying in 15s');
     sbReconnectTimer = setTimeout(connectStreamerBot, 15000);
