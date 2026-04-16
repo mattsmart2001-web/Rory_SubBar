@@ -846,10 +846,22 @@ function connectStreamerBot() {
       sbWs.send(JSON.stringify({ request: 'Identify', id: '1' }));
   }
 
-  // Send Identify as soon as the socket opens — don't wait for Hello.
-  // Streamer.bot may send Hello before onmessage is wired up, causing the
-  // handshake to stall and the client to sit "Authenticated: False" forever.
-  sbWs.onopen = doIdentify;
+  function pollGlobals() {
+    if (sbWs && sbWs.readyState === WebSocket.OPEN)
+      sbWs.send(JSON.stringify({ request: 'GetGlobals', id: 'req-1' }));
+  }
+
+  sbWs.onopen = () => {
+    doIdentify();
+    // Don't wait for a Connected response — SB versions vary in whether/how
+    // they send it. With auth disabled, GetGlobals is accepted immediately.
+    setSbBadge('sb-on', 'connected — waiting for count');
+    if (sbWs._pollTimer) clearInterval(sbWs._pollTimer);
+    // Staggered initial polls in case auth needs a moment to settle
+    setTimeout(pollGlobals, 500);
+    setTimeout(pollGlobals, 2000);
+    sbWs._pollTimer = setInterval(pollGlobals, 10000);
+  };
 
   sbWs.onmessage = (evt) => {
     let msg;
@@ -858,25 +870,13 @@ function connectStreamerBot() {
     const t = (msg.type || '').toLowerCase();
 
     if (t === 'hello') {
-      // Belt-and-suspenders: re-send Identify if Hello arrives after open
       doIdentify();
 
     } else if (t === 'connected') {
-      const authed = msg.data?.authenticated ?? true;
-      if (!authed) {
+      // If auth was required and failed, show warning
+      if (msg.data?.authenticated === false) {
         setSbBadge('sb-off', 'auth failed — disable WS password in SB');
-        return;
       }
-      setSbBadge('sb-on', 'connected — waiting for count');
-      // Fetch current stored global immediately, then poll every 10 s as a
-      // fallback in case the Streamer.bot action doesn't broadcast on each update.
-      const pollGlobals = () => {
-        if (sbWs && sbWs.readyState === WebSocket.OPEN)
-          sbWs.send(JSON.stringify({ request: 'GetGlobals', id: 'req-1' }));
-      };
-      pollGlobals();
-      if (sbWs._pollTimer) clearInterval(sbWs._pollTimer);
-      sbWs._pollTimer = setInterval(pollGlobals, 10000);
 
     } else if (t === 'getglobals') {
       // Handle both field names — older SB uses 'globals', newer may use 'variables'
