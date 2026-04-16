@@ -85,8 +85,10 @@
           const raw   = data?.items?.[0]?.statistics?.subscriberCount;
           const count = parseInt(raw, 10);
           if (!isNaN(count) && count >= 100) {
-            console.log(`[SubBar] YT API exact count: ${count.toLocaleString()}`);
-            send(count, true);  // exact — this is the real integer, not a rounded display value
+            // YouTube Data API v3 rounds subscriber counts (e.g. 35569 → 35500).
+            // Send as approximate so the DOM scrape can override with the real value.
+            console.log(`[SubBar] YT API count: ${count.toLocaleString()} (approx — YouTube rounds this)`);
+            send(count, false);
           } else {
             console.warn('[SubBar] YT API: unexpected response', data);
           }
