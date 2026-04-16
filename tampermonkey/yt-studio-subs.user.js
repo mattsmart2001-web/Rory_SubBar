@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YT Studio Sub Count → Streamer.bot
 // @namespace    rory-subbar
-// @version      1.3
+// @version      1.4
 // @description  Reads exact subscriber count from YouTube Studio and forwards to Streamer.bot
 // @match        https://studio.youtube.com/*
 // @include      *://studio.youtube.com/*
@@ -15,22 +15,24 @@
 (function () {
   'use strict';
 
-  console.log('[SubBar] Script loaded v1.3');
+  console.log('[SubBar] Script loaded v1.4');
 
   const SB_HTTP_PORT = 7474;           // Streamer.bot HTTP server port
   const SB_ACTION    = 'Sub Count Update'; // Must match action name in Streamer.bot exactly
   const POLL_MS      = 15000;
 
-  let lastSent = null;
+  let lastSent  = null;
+  let lastExact = false;  // was the last sent value an exact (non-abbreviated) count?
 
   // ── Send to Streamer.bot ─────────────────────────────────────────
-  // exact=true means DOM-sourced precise value; always send over a rounded API value
-  function send(count, exact) {
+  // exact=true means the value came from a plain number in the DOM (not abbreviated like "1.2K")
+  function send(count, exact = false) {
     if (count === lastSent) return;
-    // Don't overwrite an exact value with a rounded one (API rounds to nearest 100)
-    if (!exact && lastSent !== null && Math.abs(count - lastSent) < 200) return;
-    lastSent = count;
-    console.log(`[SubBar] Sending sub count ${count.toLocaleString()} → Streamer.bot`);
+    // Don't overwrite an exact value with an approximate one (e.g. "1.2K" → 1200)
+    if (!exact && lastExact && Math.abs(count - lastSent) < 200) return;
+    lastSent  = count;
+    lastExact = !!exact;
+    console.log(`[SubBar] Sending sub count ${count.toLocaleString()} (${exact ? 'exact' : 'approx'}) → Streamer.bot`);
     GM_xmlhttpRequest({
       method:  'POST',
       url:     `http://127.0.0.1:${SB_HTTP_PORT}/DoAction`,
@@ -86,18 +88,20 @@
   }
 
   // ── Fallback: DOM scrape ─────────────────────────────────────────
+  // Returns { n, exact } or null.
+  // exact=true only when the DOM shows a plain number (e.g. "1,234"), not an abbreviation ("1.2K").
   function parseCount(raw) {
     const s = raw.trim();
     const plain = s.replace(/[,\s]/g, '');
     if (/^\d{3,9}$/.test(plain)) {
       const n = parseInt(plain, 10);
-      if (n >= 100) return n;
+      if (n >= 100) return { n, exact: true };
     }
     const abbr = s.match(/^([\d]+(?:\.[\d]+)?)\s*([KkMm])$/);
     if (abbr) {
       const mult = abbr[2].toUpperCase() === 'K' ? 1000 : 1000000;
       const n = Math.round(parseFloat(abbr[1]) * mult);
-      if (n >= 100) return n;
+      if (n >= 100) return { n, exact: false };
     }
     return null;
   }
@@ -114,8 +118,8 @@
         if (!node) break;
         for (const c of node.querySelectorAll('*')) {
           if (c === el || c.contains(el) || c.children.length > 0) continue;
-          const n = parseCount(c.textContent);
-          if (n !== null) { send(n, true); return; }
+          const result = parseCount(c.textContent);
+          if (result !== null) { send(result.n, result.exact); return; }
         }
       }
     }
@@ -128,10 +132,11 @@
     // Must use unsafeWindow — TM's sandboxed `window` is separate from the real page window
     unsafeWindow.addEventListener('_subbar_data', function (e) {
       try {
-        const data = JSON.parse(e.detail);
+        const data  = JSON.parse(e.detail);
         const count = deepFindSubCount(data, 0);
-        // API values are rounded to nearest 100 — only use as fallback if DOM hasn't sent yet
-        if (count !== null && lastSent === null) send(count);
+        // API values are approximate (rounded) — use them as a seed when we have no exact value yet.
+        // This includes overriding a previously-sent approximate DOM value ("1.2K").
+        if (count !== null && !lastExact) send(count, false);
       } catch (_) {}
     });
 
