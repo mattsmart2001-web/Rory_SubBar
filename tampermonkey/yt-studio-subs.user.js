@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YT Studio Sub Count → Streamer.bot
 // @namespace    rory-subbar
-// @version      1.4
+// @version      1.5
 // @description  Reads exact subscriber count from YouTube Studio and forwards to Streamer.bot
 // @match        https://studio.youtube.com/*
 // @include      *://studio.youtube.com/*
@@ -9,26 +9,43 @@
 // @grant        unsafeWindow
 // @grant        window.onurlchange
 // @connect      127.0.0.1
+// @connect      googleapis.com
 // @run-at       document-start
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  console.log('[SubBar] Script loaded v1.4');
+  console.log('[SubBar] Script loaded v1.5');
 
   const SB_HTTP_PORT = 7474;           // Streamer.bot HTTP server port
   const SB_ACTION    = 'Sub Count Update'; // Must match action name in Streamer.bot exactly
   const POLL_MS      = 15000;
 
+  // ── YouTube Data API v3 (optional but gives EXACT counts) ────────
+  // Without this, Studio only shows "35.5K" and we can only send ~35500.
+  //
+  // How to get an API key (free, takes ~2 min):
+  //   1. Go to https://console.cloud.google.com/
+  //   2. Create a project (or pick an existing one)
+  //   3. Enable "YouTube Data API v3" in APIs & Services → Library
+  //   4. Create an API key in APIs & Services → Credentials
+  //   5. Paste it below
+  //
+  // Channel ID is auto-detected from the Studio URL (no need to set it).
+  const YT_API_KEY = '';  // ← paste your key here, e.g. 'AIzaSy...'
+  const YT_API_MS  = 60 * 1000; // poll interval — 60 s uses only ~1440/10000 daily quota units
+
+  // ────────────────────────────────────────────────────────────────
+
   let lastSent  = null;
   let lastExact = false;  // was the last sent value an exact (non-abbreviated) count?
 
   // ── Send to Streamer.bot ─────────────────────────────────────────
-  // exact=true means the value came from a plain number in the DOM (not abbreviated like "1.2K")
+  // exact=true means the value is a genuine integer, not rounded from "35.5K"
   function send(count, exact = false) {
     if (count === lastSent) return;
-    // Don't overwrite an exact value with an approximate one (e.g. "1.2K" → 1200)
+    // Don't overwrite an exact value with an approximate one
     if (!exact && lastExact && Math.abs(count - lastSent) < 200) return;
     lastSent  = count;
     lastExact = !!exact;
@@ -45,12 +62,47 @@
     });
   }
 
+  // ── YouTube Data API v3 ──────────────────────────────────────────
+  // Returns exact subscriber count. Channel ID is read from the Studio URL.
+  function getChannelId() {
+    const m = location.href.match(/studio\.youtube\.com\/channel\/(UC[\w-]+)/);
+    return m ? m[1] : null;
+  }
+
+  function fetchYtApiCount() {
+    if (!YT_API_KEY) return;
+    const channelId = getChannelId();
+    if (!channelId) {
+      console.log('[SubBar] YT API: channel ID not found in URL yet — will retry');
+      return;
+    }
+    GM_xmlhttpRequest({
+      method: 'GET',
+      url:    `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${YT_API_KEY}`,
+      onload: function (resp) {
+        try {
+          const data  = JSON.parse(resp.responseText);
+          const raw   = data?.items?.[0]?.statistics?.subscriberCount;
+          const count = parseInt(raw, 10);
+          if (!isNaN(count) && count >= 100) {
+            console.log(`[SubBar] YT API exact count: ${count.toLocaleString()}`);
+            send(count, true);  // exact — this is the real integer, not a rounded display value
+          } else {
+            console.warn('[SubBar] YT API: unexpected response', data);
+          }
+        } catch (err) {
+          console.warn('[SubBar] YT API parse error', err);
+        }
+      },
+      onerror: () => console.warn('[SubBar] YT API request failed — check your API key and quota')
+    });
+  }
+
   // ── Deep-search an object for a subscriber count value ───────────
   // YouTube Studio API responses nest the count under various keys.
   function deepFindSubCount(obj, depth) {
     if (depth > 12 || !obj || typeof obj !== 'object') return null;
     for (const [k, v] of Object.entries(obj)) {
-      // Key names seen in Studio API responses
       if (/^subscriber_?count$/i.test(k) && (typeof v === 'string' || typeof v === 'number')) {
         const n = parseInt(String(v).replace(/\D/g, ''), 10);
         if (n >= 100) return n;
@@ -74,7 +126,6 @@
       var url = typeof arguments[0] === 'string'
         ? arguments[0]
         : (arguments[0] && arguments[0].url) || '';
-      // Only inspect Studio's own API calls
       if (url.indexOf('/youtubei/') !== -1) {
         res.clone().json().then(function (data) {
           window.dispatchEvent(new CustomEvent('_subbar_data', { detail: JSON.stringify(data) }));
@@ -89,7 +140,7 @@
 
   // ── Fallback: DOM scrape ─────────────────────────────────────────
   // Returns { n, exact } or null.
-  // exact=true only when the DOM shows a plain number (e.g. "1,234"), not an abbreviation ("1.2K").
+  // exact=true only when DOM shows a plain integer ("1,234"), not an abbreviation ("1.2K").
   function parseCount(raw) {
     const s = raw.trim();
     const plain = s.replace(/[,\s]/g, '');
@@ -128,21 +179,26 @@
   function init() {
     injectFetchHook();
 
-    // Listen for data relayed from the page context
-    // Must use unsafeWindow — TM's sandboxed `window` is separate from the real page window
+    // YouTube Data API v3 — exact counts, highest priority
+    if (YT_API_KEY) {
+      fetchYtApiCount();
+      setInterval(fetchYtApiCount, YT_API_MS);
+    } else {
+      console.log('[SubBar] No YT_API_KEY set — falling back to DOM/Studio API (may show rounded counts). See script header for setup instructions.');
+    }
+
+    // Listen for data relayed from the page context (Studio internal API — approximate)
     unsafeWindow.addEventListener('_subbar_data', function (e) {
       try {
         const data  = JSON.parse(e.detail);
         const count = deepFindSubCount(data, 0);
-        // API values are approximate (rounded) — use them as a seed when we have no exact value yet.
-        // This includes overriding a previously-sent approximate DOM value ("1.2K").
+        // Studio internal API rounds to nearest 100 — only use when no exact value exists
         if (count !== null && !lastExact) send(count, false);
       } catch (_) {}
     });
 
     // Periodic DOM fallback poll
     setInterval(domCheck, POLL_MS);
-    // Staggered checks — give the page time to render the exact number
     setTimeout(domCheck, 4000);
     setTimeout(domCheck, 9000);
   }
@@ -154,8 +210,9 @@
     init();
   }
 
-  // Re-run on SPA URL changes (YouTube Studio navigates without full page reloads)
+  // Re-run on SPA URL changes — also retry YT API if channel ID wasn't in URL at startup
   window.onurlchange = function () {
+    if (YT_API_KEY) fetchYtApiCount();
     setTimeout(domCheck, 4000);
     setTimeout(domCheck, 9000);
   };
