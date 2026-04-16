@@ -841,15 +841,27 @@ function connectStreamerBot() {
     return;
   }
 
+  function doIdentify() {
+    if (sbWs && sbWs.readyState === WebSocket.OPEN)
+      sbWs.send(JSON.stringify({ request: 'Identify', id: '1' }));
+  }
+
+  // Send Identify as soon as the socket opens — don't wait for Hello.
+  // Streamer.bot may send Hello before onmessage is wired up, causing the
+  // handshake to stall and the client to sit "Authenticated: False" forever.
+  sbWs.onopen = doIdentify;
+
   sbWs.onmessage = (evt) => {
     let msg;
     try { msg = JSON.parse(evt.data); } catch(_) { return; }
 
-    if (msg.type === 'Hello') {
-      // Streamer.bot handshake — correct format uses "request" key, not "type"
-      sbWs.send(JSON.stringify({ request: 'Identify', id: '1' }));
+    const t = (msg.type || '').toLowerCase();
 
-    } else if (msg.type === 'Connected') {
+    if (t === 'hello') {
+      // Belt-and-suspenders: re-send Identify if Hello arrives after open
+      doIdentify();
+
+    } else if (t === 'connected') {
       const authed = msg.data?.authenticated ?? true;
       if (!authed) {
         setSbBadge('sb-off', 'auth failed — disable WS password in SB');
@@ -866,9 +878,13 @@ function connectStreamerBot() {
       if (sbWs._pollTimer) clearInterval(sbWs._pollTimer);
       sbWs._pollTimer = setInterval(pollGlobals, 10000);
 
-    } else if (msg.type === 'GetGlobals' && Array.isArray(msg.data?.globals)) {
-      const sc = msg.data.globals.find(g => g.name === 'subCount');
-      if (sc) handleSbCount(parseInt(sc.value, 10));
+    } else if (t === 'getglobals') {
+      // Handle both field names — older SB uses 'globals', newer may use 'variables'
+      const vars = msg.data?.globals ?? msg.data?.variables ?? [];
+      if (Array.isArray(vars)) {
+        const sc = vars.find(g => g.name?.toLowerCase() === 'subcount');
+        if (sc) handleSbCount(parseInt(sc.value, 10));
+      }
 
     } else if (msg.subCount != null) {
       // Raw broadcast from CPH.WebsocketBroadcastString("{\"subCount\":\"34732\"}")
