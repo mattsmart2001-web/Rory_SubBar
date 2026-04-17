@@ -196,12 +196,12 @@
     /* Static pill under the bar — placeholder region for YT Studio overlay in OBS */
     .live-count-pill {
       display: block;
-      width: 160px;
-      height: 30px;
+      width: 80px;
+      height: 24px;
       margin: 6px auto 0;
       background: var(--pill-bg, rgba(45, 63, 110, 0.60));
       border: 1px solid rgba(94, 232, 252, 0.22);
-      border-radius: 14px;
+      border-radius: 0 0 10px 10px;
       pointer-events: none;
     }
 
@@ -307,6 +307,14 @@
     }
 
     .color-hex:focus { border-color: #5ee8fc; background: #122040; }
+
+    .hex-prefix {
+      color: #6a88b4;
+      font-family: monospace;
+      font-size: 12px;
+      user-select: none;
+      margin-right: -2px;
+    }
 
     .field-span2 { grid-column: span 2; }
 
@@ -433,7 +441,8 @@
       <label>Bar Fill Colour</label>
       <div class="color-field-wrap">
         <div class="color-swatch" id="swatch-barcolor" style="background:#5ee8fc"></div>
-        <input class="color-hex" id="c-barcolor" type="text" maxlength="7" placeholder="5ee8fc">
+        <span class="hex-prefix">#</span>
+        <input class="color-hex" id="c-barcolor" type="text" maxlength="6" placeholder="5ee8fc">
       </div>
     </div>
 
@@ -442,14 +451,16 @@
       <label>Unfilled Slots Colour</label>
       <div class="color-field-wrap">
         <div class="color-swatch" id="swatch-trackcolor" style="background:#2c3d5e"></div>
-        <input class="color-hex" id="c-trackcolor" type="text" maxlength="7" placeholder="2c3d5e">
+        <span class="hex-prefix">#</span>
+        <input class="color-hex" id="c-trackcolor" type="text" maxlength="6" placeholder="2c3d5e">
       </div>
     </div>
     <div class="field">
       <label>Background Pill Colour</label>
       <div class="color-field-wrap">
         <div class="color-swatch" id="swatch-pillcolor" style="background:#2d3f6e"></div>
-        <input class="color-hex" id="c-pillcolor" type="text" maxlength="7" placeholder="2d3f6e">
+        <span class="hex-prefix">#</span>
+        <input class="color-hex" id="c-pillcolor" type="text" maxlength="6" placeholder="2d3f6e">
       </div>
     </div>
     <div class="field field-span2">
