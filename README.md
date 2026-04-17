@@ -1,6 +1,6 @@
 # Rory Sub Bar - OBS Overlay
 
-A live sub bar & membership progress bar overlay for OBS. Shows your live member count as a segmented bar between two milestones, with live notifications and a sub combo counter.
+A live sub bar & membership progress bar overlay for OBS. Shows your member progress as a segmented bar between two milestones, with live notifications and a sub combo counter.
 
 ---
 
@@ -8,7 +8,7 @@ A live sub bar & membership progress bar overlay for OBS. Shows your live member
 
 1. In OBS, add a **Browser Source**
 2. Check **Local file** and point it at `index.html`
-3. Set **Width: 1280** and **Height: 110**
+3. Set **Width: 1280** and **Height: 140**
 4. Enable **"Shutdown source when not visible"** and **"Refresh browser when scene becomes active"**
 5. Paste this into the **Custom CSS** box so the background is transparent on stream:
    ```css
@@ -24,78 +24,21 @@ To use a different name or URL, update the **Profile Pic** field in the control 
 
 ---
 
-## Full Setup
+## Live member count (YouTube Studio overlay)
 
-The exact member count flows like this:
+The overlay draws a **static pill** directly under the bar as a placeholder for the live count.
+For the exact figure, add a second OBS **Browser Source** pointing at YouTube Studio and crop it down to the members-count number, then position it on top of the static pill.
 
 ```
-YouTube Studio  →  Tampermonkey script  →  Streamer.bot  →  OBS overlay
-                                                ↑
-                                      (YouTube account connected
-                                       for membership events)
+YouTube Studio (browser source, cropped) ──► sits over the static pill
+Sub Bar overlay (this repo)              ──► bar + notifications + combo
 ```
 
----
-
-### Step 1 — Install Streamer.bot
-
-1. Download and install [Streamer.bot](https://streamer.bot)
-2. Run it — it lives in the system tray while streaming
-
-**Connect your YouTube account:**
-
-1. In Streamer.bot, go to **Platforms → YouTube**
-2. Click **Connect** and sign in with your Google account
-3. The status should show your channel name in green
-
-**Enable the servers the overlay needs:**
-
-1. Go to **Settings → Servers/Clients → HTTP Server**
-   - Check **Auto Start** and set port to **7474**
-2. Go to **Settings → Servers/Clients → WebSocket Server**
-   - Check **Auto Start** and set port to **8080**
-3. Click **Save** on each
+No Tampermonkey / Streamer.bot required.
 
 ---
 
-### Step 2 — Create the Sub Count action
-
-This action receives the count from Tampermonkey and forwards it to the overlay.
-
-1. In Streamer.bot, go to **Actions** and click **+** to create a new action
-2. Name it exactly: **`Sub Count Update`**
-3. In the sub-actions panel, click **+** → **Core → C# → Execute Code**
-4. Paste this code and click **Save**:
-
-```csharp
-using System;
-public class CPHInline
-{
-    public bool Execute()
-    {
-        int count = int.Parse(args["subCount"].ToString());
-        CPH.WebsocketBroadcastString("{\"type\":\"subCount\",\"count\":" + count + "}");
-        return true;
-    }
-}
-```
-
----
-
-### Step 3 — Install the Tampermonkey script
-
-The script runs in your browser on YouTube Studio and feeds the exact member count to Streamer.bot.
-
-1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension
-2. Open Tampermonkey → **Create a new script**
-3. Delete the placeholder and paste the full contents of `tampermonkey/yt-studio-subs.user.js`
-4. Save (Ctrl+S)
-
-From now on, keep a YouTube Studio tab open while streaming — the script will push the count to Streamer.bot automatically whenever it changes.
-
----
-
-### Step 4 — Connect StreamElements (for notifications)
+## StreamElements (notifications)
 
 New member, returning member, and gifted membership alerts come from StreamElements in real time.
 
@@ -103,11 +46,15 @@ New member, returning member, and gifted membership alerts come from StreamEleme
 2. Copy the **JWT token**
 3. Paste it into the **StreamElements JWT** field in the overlay's control console
 
+The JWT also drives the bar fill (auto-refresh every N seconds). If you prefer to drive the bar manually, leave the JWT empty and set **Static Sub Count** in the console.
+
 ---
 
 ## Control Console
 
 Everything is configurable from the panel inside `index.html` — no code editing needed.
+Colour fields accept **hex values only** (e.g. `#5ee8fc`) so they work through the OBS *Interact* window, which can't open native colour-picker popups.
+
 In OBS, alt-drag the **bottom edge** of the browser source upward to crop out the console so only the bar shows on stream.
 
 <!-- CONFIG_TABLE_START -->
@@ -131,6 +78,7 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 ## Features
 
 - **Progress bar** — segmented fill between two milestones with profile pic indicator
+- **Static count pill** — fixed position under the bar, overlay YT Studio on top for the exact live figure
 - **Live notifications** — shows new members, returning members, gifted memberships, and community gift events
 - **Sub combo** — tracks rapid membership events in a 7-second window; escalates from white → gold (×5) → fire (×10+) with a bump animation
 - **🔔 Test Notification** / **⚡ Test Combo** buttons in the console for previewing on stream
@@ -141,8 +89,6 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 
 ```
 Rory_SubBar/
-├── index.html                          # OBS browser source — the whole overlay
-├── profile.jpg                         # Your headshot (add this yourself)
-└── tampermonkey/
-    └── yt-studio-subs.user.js          # Tampermonkey script — reads Studio sub count → Streamer.bot
+├── index.html     # OBS browser source — the whole overlay
+└── profile.jpg    # Your headshot (add this yourself)
 ```

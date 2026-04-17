@@ -193,27 +193,26 @@
       box-shadow: 0 0 6px rgba(0,0,0,0.7);
     }
 
+    /* Static pill under the bar — placeholder region for YT Studio overlay in OBS */
     .live-count-pill {
-      position: absolute;
-      /* flat top flush with bar-track bottom (bar-row padding-bottom = 12px) */
-      top: calc(100% - 12px);
-      /* right edge sits 18px left of the profile-pic centre so it clears the pic */
-      transform: translateX(calc(-100% - 18px));
+      display: block;
+      width: fit-content;
+      min-width: 110px;
+      margin: 6px auto 0;
+      text-align: center;
       background: var(--pill-bg, rgba(45, 63, 110, 0.60));
       border: 1px solid rgba(94, 232, 252, 0.22);
-      border-radius: 0 0 10px 10px;
-      padding: 4px 10px 5px;
+      border-radius: 14px;
+      padding: 5px 16px 6px;
       font-family: 'Eurostile', 'Arial Black', sans-serif;
       font-weight: bold;
       font-style: italic;
-      font-size: 13px;
+      font-size: 16px;
       color: #5ee8fc;
       text-shadow: 0 0 10px rgba(94, 232, 252, 0.35);
       white-space: nowrap;
-      z-index: 5;
       pointer-events: none;
     }
-    .live-count-pill:empty { display: none; }
 
     /* ════════════════════════════════════════
        CONTROL CONSOLE
@@ -367,8 +366,6 @@
     .status.error    { color: #ee5040; }
     .status.auth-off { color: #607090; }
     .status.auth-on  { color: #40dd80; }
-    .status.sb-off   { color: #607090; }
-    .status.sb-on    { color: #40dd80; }
 
     /* Divider between API-key row and OAuth row */
     .console-divider {
@@ -393,10 +390,16 @@
       <div class="bar-fill" id="barFill" style="width:0"></div>
     </div>
     <span class="milestone" id="endLabel"></span>
-    <div class="live-count-pill" id="liveCountPill"></div>
     <img class="profile-pic" id="profilePic" src="" alt="streamer" style="left:0">
   </div>
 </div>
+
+<!-- ── STATIC SUB COUNT PILL ──────────────────────────────
+     Visual placeholder directly below the bar.
+     In OBS, overlay the YT Studio member count on top of this
+     region for an exact live figure.
+──────────────────────────────────────────────────────── -->
+<div class="live-count-pill" id="liveCountPill"></div>
 
 <!-- ── NOTIFICATIONS ──────────────────────────────────────── -->
 <div class="notif-row">
@@ -490,7 +493,6 @@
       <div class="console-actions">
         <button class="btn-action btn-disconnect" id="btnClearSE">✕ Clear SE</button>
         <span class="status auth-off" id="seBadge">● SE: not connected</span>
-        <span class="status sb-off" id="sbBadge">● SB: waiting</span>
         <button class="btn-action" id="btnRefresh">↻ Refresh</button>
       </div>
     </div>
@@ -605,13 +607,11 @@ function positionIndicator(pct) {
   const row   = document.getElementById('barRow');
   const track = document.getElementById('barTrack');
   const pic   = document.getElementById('profilePic');
-  const pill  = document.getElementById('liveCountPill');
   const rR    = row.getBoundingClientRect();
   const tR    = track.getBoundingClientRect();
   const trackLeft = tR.left - rR.left;
   const x = Math.max(trackLeft, Math.min(trackLeft + tR.width * pct, trackLeft + tR.width));
-  pic.style.left  = x + 'px';
-  if (pill) pill.style.left = x + 'px';
+  pic.style.left = x + 'px';
 }
 
 function updateUI(fillPct, count) {
@@ -808,76 +808,6 @@ function resetCombo() {
   if (el) el.classList.remove('visible', 'hot', 'fire', 'bump');
 }
 
-// ── Streamer.bot WebSocket ────────────────────────────────────────
-const SB_WS_PORT = 8080;
-let sbWs = null;
-let sbReconnectTimer = null;
-
-function setSbBadge(state, label) {
-  const el = document.getElementById('sbBadge');
-  if (!el) return;
-  el.className   = 'status ' + state;
-  el.textContent = '● SB: ' + label;
-}
-
-function handleSbCount(count) {
-  if (isNaN(count) || count <= 0) return;
-  setSbBadge('sb-on', count.toLocaleString() + ' received');
-  const fillPct = (count - CONFIG.startMilestone)
-                / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
-  updateUI(fillPct, count);
-}
-
-function connectStreamerBot() {
-  if (sbWs) { try { sbWs.close(); } catch(_) {} sbWs = null; }
-  if (sbReconnectTimer) { clearTimeout(sbReconnectTimer); sbReconnectTimer = null; }
-  setSbBadge('sb-off', 'connecting…');
-
-  try {
-    sbWs = new WebSocket(`ws://127.0.0.1:${SB_WS_PORT}/`);
-  } catch(e) {
-    setSbBadge('sb-off', 'not reachable — retrying in 15s');
-    sbReconnectTimer = setTimeout(connectStreamerBot, 15000);
-    return;
-  }
-
-  sbWs.onmessage = (evt) => {
-    let msg;
-    try { msg = JSON.parse(evt.data); } catch(_) { return; }
-
-    if (msg.type === 'Hello') {
-      // Streamer.bot handshake — correct format uses "request" key, not "type"
-      sbWs.send(JSON.stringify({ request: 'Identify', id: '1' }));
-
-    } else if (msg.type === 'Connected') {
-      const authed = msg.data?.authenticated ?? true;
-      if (!authed) {
-        setSbBadge('sb-off', 'auth failed — disable WS password in SB');
-        return;
-      }
-      setSbBadge('sb-on', 'connected — waiting for count');
-      // Fetch current stored global immediately
-      sbWs.send(JSON.stringify({ request: 'GetGlobals', id: 'req-1' }));
-
-    } else if (msg.type === 'GetGlobals' && Array.isArray(msg.data?.globals)) {
-      const sc = msg.data.globals.find(g => g.name === 'subCount');
-      if (sc) handleSbCount(parseInt(sc.value, 10));
-
-    } else if (msg.subCount != null) {
-      // Raw broadcast from CPH.WebsocketBroadcastString("{\"subCount\":\"34732\"}")
-      handleSbCount(parseInt(msg.subCount, 10));
-    }
-  };
-
-  sbWs.onerror = () => setSbBadge('sb-off', 'error — retrying in 15s');
-
-  sbWs.onclose = () => {
-    sbWs = null;
-    setSbBadge('sb-off', 'disconnected — retrying in 15s');
-    sbReconnectTimer = setTimeout(connectStreamerBot, 15000);
-  };
-}
-
 // ── SE realtime socket ───────────────────────────────────────────
 let seSocket = null;
 
@@ -936,7 +866,6 @@ window.addEventListener('load', () => {
   refresh();
   startRefreshTimer();
   connectSESocket();
-  connectStreamerBot();
 });
 </script>
 </body>
