@@ -67,6 +67,7 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 | `barColor` | `'#5ee8fc'` | Bar fill colour |
 | `trackColor` | `'#2c3d5e'` | Unfilled slot colour |
 | `pillColor` | `'#2d3f6e'` | Background pill colour |
+| `subPillColor` | `'#2d3f6e'` | Sub counter pill colour |
 | `streamElementsJwt` | `''` | SE JWT — positions the bar |
 | `refreshSeconds` | `60` | Auto-refresh interval |
 | `staticSubCount` | `0` | Static subscriber count shown under bar |
