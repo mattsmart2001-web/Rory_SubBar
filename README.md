@@ -1,99 +1,146 @@
-# Rory Sub Bar - OBS Overlay
+# Rory Sub Bar — OBS Setup
 
-A live sub bar & membership progress bar overlay for OBS. Shows your member progress as a segmented bar between two milestones, with live notifications and a sub combo counter.
-
----
-
-## OBS Setup
-
-1. In OBS, add a **Browser Source**
-2. Check **Local file** and point it at `index.html`
-3. Set **Width: 1280** and **Height: 140**
-4. Enable **"Shutdown source when not visible"** and **"Refresh browser when scene becomes active"**
-5. Paste this into the **Custom CSS** box so the background is transparent on stream:
-   ```css
-   html, body { background: transparent !important; }
-   ```
+A live YouTube sub bar overlay with real-time membership and Super Chat notifications.
 
 ---
 
-## Bar graphics
+## What you need before you start
 
-Drop two files next to `index.html`:
-
-- `BG.png` — the background pill the loader sits on
-- `Loader.webm` — the animated fill that grows left-to-right as subs rise
-
-Both are stretched to the overlay's full width. The loader is clipped via
-`clip-path` so the visible portion equals
-`(currentSubs − startMilestone) / (endMilestone − startMilestone)`.
-
-Use a WebM with an alpha channel (VP9 / VP8 w/ alpha) for transparency.
+- **OBS Studio** installed on your PC
+- The **`Rory_SubBar` folder** on your PC (this repo, with `index.html`, `BG.png`, `Loader.webm`, and the font files inside it)
+- A **StreamElements account** linked to your YouTube channel (sign up free at streamelements.com)
 
 ---
 
-## Live member count (YouTube Studio overlay)
+## Step 1 — Get your StreamElements JWT token
 
-The overlay draws a **static pill** directly under the bar as a placeholder for the live count.
-For the exact figure, add a second OBS **Browser Source** pointing at YouTube Studio and crop it down to the members-count number, then position it on top of the static pill.
+The JWT is a long secret string that lets the overlay talk to StreamElements.
 
-```
-YouTube Studio (browser source, cropped) ──► sits over the static pill
-Sub Bar overlay (this repo)              ──► bar + notifications + combo
-```
+1. Go to **https://streamelements.com** and log in with the account that's linked to your YouTube channel
+2. Click your **profile picture** (top-right corner)
+3. Click **Account**
+4. Scroll down and click **Show Secrets**
+5. Find the row labelled **JWT Token** and click the copy icon next to it
+6. Keep it somewhere safe — you'll paste it in Step 4
 
-No Tampermonkey / Streamer.bot required.
-
----
-
-## StreamElements (notifications)
-
-New member, returning member, and gifted membership alerts come from StreamElements in real time.
-
-1. Go to [streamelements.com](https://streamelements.com) → click your profile picture → **Show Secrets**
-2. Copy the **JWT token**
-3. Paste it into the **StreamElements JWT** field in the overlay's control console
-
-The JWT also drives the bar fill (auto-refresh every N seconds). If you prefer to drive the bar manually, leave the JWT empty and set **Static Sub Count** in the console.
+⚠️ **Never share this JWT publicly.** Anyone with it can read your SE account data.
 
 ---
 
-## Control Console
+## Step 2 — Add the overlay to OBS
 
-Everything is configurable from the panel inside `index.html` — no code editing needed.
-The colour field takes a 6-character hex value (no `#` needed — it's pre-printed next to the input) so it works through the OBS *Interact* window, which can't open native colour-picker popups.
+1. Open **OBS Studio**
+2. In the **Sources** panel, click the **+** button → **Browser**
+3. Name it "Sub Bar" and click **OK**
+4. In the window that opens:
+   - Tick **Local file**
+   - Click **Browse** next to it and find `index.html` inside your `Rory_SubBar` folder
+   - Set **Width** to `1280`
+   - Set **Height** to `700` (yes, it's bigger than you need — we'll crop it next)
+   - Tick **Shutdown source when not visible**
+   - Tick **Refresh browser when scene becomes active**
+   - Click **OK**
 
-In OBS, alt-drag the **bottom edge** of the browser source upward to crop out the console so only the bar shows on stream.
-
-<!-- CONFIG_TABLE_START -->
-| Key | Default | Description |
-|-----|---------|-------------|
-| `startMilestone` | `30000` | Left end of bar |
-| `endMilestone` | `40000` | Right end of bar |
-| `nextMilestone` | `35000` | Next milestone label |
-| `youtubeApiKey` | `''` | YouTube Data API key (free) — primary count source |
-| `youtubeChannelId` | `''` | YouTube channel ID (UCxxxxxxx) |
-| `refreshSeconds` | `600` | Auto-refresh interval (seconds) |
-| `staticSubCount` | `0` | Manual override if APIs unavailable |
-<!-- CONFIG_TABLE_END -->
+You'll see the sub bar plus a big blue control console underneath.
 
 ---
 
-## Features
+## Step 3 — Crop out the control console
 
-- **Progress bar** — segmented fill between two milestones with profile pic indicator
-- **Static count pill** — fixed position under the bar, overlay YT Studio on top for the exact live figure
-- **Live notifications** — shows new members, returning members, gifted memberships, and community gift events
-- **Sub combo** — tracks rapid membership events in a 7-second window; escalates from white → gold (×5) → fire (×10+) with a bump animation
-- **🔔 Test Notification** / **⚡ Test Combo** buttons in the console for previewing on stream
+The console is for configuration only — viewers shouldn't see it.
+
+1. Click the Sub Bar source once to select it in the preview
+2. **Hold ALT** and drag the **bottom edge** of the red bounding box **upward** until only the bar and a bit of space below it is visible
+3. Release ALT
+4. The console is now hidden on stream but still there when you need it
 
 ---
 
-## Files
+## Step 4 — Paste your JWT and configure
+
+1. Right-click the Sub Bar source → **Interact**
+2. A new window opens showing the overlay with the console visible
+3. In the console, paste your JWT into the **StreamElements JWT** field
+4. The status dot next to it should go **connecting… → authenticating… → connected** (green)
+
+   If it says **bad JWT** or **connection failed**, double-check you copied the whole token.
+
+5. Fill in the rest:
+   - **Start Milestone** — the sub count at the left end of the bar (e.g. `30000`)
+   - **End Milestone** — the sub count at the right end (e.g. `40000`)
+   - **Next Goal** — label text for your next goal (e.g. `35000`)
+   - Leave **YouTube API Key** and **YouTube Channel ID** empty (the JWT handles everything)
+   - **Auto-refresh** — leave at `600` (10 minutes)
+6. Close the Interact window. Settings are saved automatically.
+
+---
+
+## Step 5 — Test it
+
+1. Right-click the Sub Bar source → **Interact** again
+2. Click **🔔 Test Notification** — a test message should pop up on the overlay
+3. Click **⚡ Test Combo** a few times rapidly — the combo counter should escalate
+
+To test a **real** event end-to-end:
+
+1. Go to **streamelements.com** → **Streaming Tools** → **Activity Feed**
+2. Click the **Emulate** button at the top
+3. Pick **New Subscriber** (or Tip, Super Chat, etc.) and click send
+4. The notification should appear on your OBS overlay within a second or two
+
+---
+
+## What the notifications look like
+
+- **New member / sub** → `Username just subscribed!`
+- **Gifted membership** → `Gifter gifted a membership to Receiver!`
+- **Community gift bundle** → `Gifter gifted 5 memberships to the community!`
+- **Super Chat** → `Username sent a Super Chat: message`
+- **Donation** → `Username donated £5!`
+
+Multiple subs within 7 seconds trigger a **combo counter**:
+- ×2–4: white
+- ×5–9: gold
+- ×10+: fire
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|--------|-----|
+| Status dot stays on **no JWT** | JWT field is empty — re-paste it |
+| Status dot shows **bad JWT** | Token is wrong or expired — regenerate in SE Account → Show Secrets |
+| Status dot shows **connection failed** | No internet, or a firewall is blocking `realtime.streamelements.com` |
+| Sub count shows 0 | JWT is connected but your SE account isn't reading subs — fall back to the YouTube API fields in the console |
+| Loader webm doesn't fill | Wait up to 10 minutes for the next auto-refresh, or click **↻ Refresh** in the console |
+| Console won't go away | Alt-drag the bottom edge of the source upward in OBS (see Step 3) |
+| Need to see the console again | Alt-drag the bottom edge back down, or right-click → **Interact** |
+
+---
+
+## Optional — YouTube API fallback
+
+If you ever want to drive the sub count from YouTube's public API instead of StreamElements (for example if SE goes down):
+
+1. Go to **https://console.cloud.google.com** → create a new project
+2. Search for **YouTube Data API v3** → click **Enable**
+3. Go to **Credentials** → **Create Credentials** → **API Key** → copy the key
+4. Find your **YouTube Channel ID** — on YouTube, go to your channel → Settings → Advanced → Channel ID (starts with `UC`)
+5. Paste both into the matching fields in the overlay's console
+
+The overlay will use this if the JWT is empty or not returning data.
+
+---
+
+## Files in this folder
 
 ```
 Rory_SubBar/
-├── index.html    # OBS browser source — the whole overlay
-├── BG.png        # Background pill graphic (add this yourself)
-└── Loader.webm   # Animated fill loop (add this yourself)
+├── index.html              # The overlay — this is what OBS loads
+├── BG.png                  # Background pill graphic
+├── Loader.webm             # Animated fill
+├── Third Rail.ttf          # Milestone font
+├── Eurostile BoldItalic.ttf # Notification font
+└── README.md               # This file
 ```
