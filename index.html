@@ -484,9 +484,16 @@ function seekLoader(pct) {
       }
     };
 
+    // Reset to start, wait for the seek to complete, then play forward.
+    // Without waiting for 'seeked', play() can fire before currentTime
+    // has actually moved to 0 and the video just jumps to the target.
+    video.pause();
+    video.addEventListener('seeked', function startPlay() {
+      video.removeEventListener('seeked', startPlay);
+      video.addEventListener('timeupdate', video._stopHandler);
+      video.play().catch(() => {});
+    }, { once: true });
     video.currentTime = 0;
-    video.addEventListener('timeupdate', video._stopHandler);
-    video.play().catch(() => {});
   };
   if (video.readyState >= 2) apply();
   else video.addEventListener('loadeddata', apply, { once: true });
