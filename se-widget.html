@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  STREAMELEMENTS CUSTOM WIDGET — paste into the HTML tab     ║
+  ║                                                              ║
+  ║  BEFORE PASTING:                                             ║
+  ║  1. In SE overlay editor → click the cloud/upload icon      ║
+  ║     to open the Asset Uploader.                             ║
+  ║  2. Upload these four files from the repo:                   ║
+  ║       BG.png                                                 ║
+  ║       Loader.webm                                            ║
+  ║       Third Rail.ttf                                         ║
+  ║       Eurostile BoldItalic.ttf                               ║
+  ║  3. For each upload, copy the CDN URL SE gives you and       ║
+  ║     replace the matching placeholder below (search for       ║
+  ║     PASTE_SE_CDN_URL).                                       ║
+  ║  4. Set widget SIZE to 1280 × 350 in the SE editor.         ║
+  ║  5. Paste this whole file into the HTML tab.                 ║
+  ║     Leave the CSS and JS tabs empty.                         ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="dark">
+  <title>Sub Bar Overlay</title>
+  <style>
+    @font-face {
+      font-family: 'Eurostile';
+      src: url('PASTE_SE_CDN_URL_FOR_Eurostile_BoldItalic.ttf') format('truetype');
+      font-weight: bold;
+      font-style: italic;
+    }
+
+    @font-face {
+      font-family: 'Third Rail';
+      src: url('PASTE_SE_CDN_URL_FOR_Third_Rail.ttf') format('truetype');
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { background: #0a1020; }
+
+    body {
+      width: 1280px;
+      background: transparent;
+      -webkit-font-smoothing: antialiased;
+      font-family: Arial, sans-serif;
+    }
+
+    .bar-container {
+      position: relative;
+      width: 1280px;
+    }
+
+    .bar-bg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .bar-loader {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+      pointer-events: none;
+    }
+    .bar-loader-src {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ── Notification row ─────────────────── */
+    .notif-row {
+      width: 1280px;
+      height: 38px;
+      margin-top: -50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .notif-text {
+      font-family: 'Eurostile', 'Arial Black', sans-serif;
+      font-weight: bold;
+      font-style: italic;
+      font-size: 22px;
+      color: #fff;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 22px rgba(94,232,252,0.45);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      white-space: nowrap;
+    }
+
+    .notif-text.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Combo row ────────────────────────────── */
+    .combo-row {
+      width: 1280px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .combo-text {
+      font-family: 'Eurostile', 'Arial Black', sans-serif;
+      font-weight: bold;
+      font-style: italic;
+      color: #e0f0ff;
+      font-size: 26px;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 18px rgba(94,232,252,0.5);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s ease, font-size 0.15s ease, color 0.15s ease, text-shadow 0.15s ease;
+    }
+
+    .combo-text.visible { opacity: 1; }
+
+    .combo-text.hot {
+      color: #ffd060;
+      font-size: 32px;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 28px rgba(255,200,0,0.85);
+    }
+
+    .combo-text.fire {
+      color: #ff7040;
+      font-size: 40px;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9),
+                   0 0 30px rgba(255,100,0,0.9),
+                   0 0 60px rgba(255,40,0,0.55);
+    }
+
+    @keyframes combo-bump {
+      0%   { transform: scale(1); }
+      45%  { transform: scale(1.22); }
+      100% { transform: scale(1); }
+    }
+    .combo-text.bump { animation: combo-bump 0.28s ease; }
+
+    .milestone {
+      position: absolute;
+      top: 147px;
+      color: #fff;
+      font-family: 'Third Rail', 'Arial Black', sans-serif;
+      font-size: 20px;
+      white-space: nowrap;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .milestone-start { left: 24px; }
+    .milestone-end   { right: 24px; }
+
+    /* ════════════════════════════════════════
+       CONTROL CONSOLE
+    ════════════════════════════════════════ */
+    .console {
+      width: 1280px;
+      margin-top: 40px;
+      background: #1a2d52;
+      border-radius: 10px;
+      border: 2px solid #2e4a82;
+      padding: 0 14px 14px;
+    }
+
+    .console-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #152340;
+      border-radius: 8px 8px 0 0;
+      margin: 0 -14px 10px;
+      padding: 7px 14px;
+      border-bottom: 1px solid #2e4a82;
+    }
+
+    .console-title {
+      color: #5ee8fc;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+    }
+
+    .console-tip {
+      color: #7898c0;
+      font-size: 10px;
+      font-style: italic;
+    }
+
+    .console-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 8px 10px;
+    }
+
+    .field label {
+      display: block;
+      color: #90b8e8;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 3px;
+    }
+
+    .field input {
+      width: 100%;
+      background: #0e1e3a;
+      border: 1px solid #3a5898;
+      border-radius: 4px;
+      padding: 5px 8px;
+      color: #d8eaff;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus {
+      border-color: #5ee8fc;
+      background: #122040;
+    }
+
+    .field input::placeholder { color: #4a6890; }
+
+    .field-span2 { grid-column: span 2; }
+    .field-span3 { grid-column: span 3; }
+    .field-span4 { grid-column: span 4; }
+
+    .actions-cell label { visibility: hidden; }
+
+    .console-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 27px;
+    }
+
+    .btn-action {
+      background: #1e3a78;
+      border: 1px solid #5e88d8;
+      border-radius: 4px;
+      color: #c8e0ff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 0 12px;
+      height: 100%;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .btn-action:hover  { background: #28408a; }
+    .btn-action:active { background: #0e2048; }
+
+  </style>
+</head>
+<body>
+
+<!-- ── BAR ─────────────────────────────────────────────── -->
+<div class="bar-container">
+  <img class="bar-bg" src="PASTE_SE_CDN_URL_FOR_BG.png" alt="">
+  <canvas class="bar-loader" id="barCanvas"></canvas>
+  <video class="bar-loader-src" id="barLoader" muted playsinline preload="auto">
+    <source src="PASTE_SE_CDN_URL_FOR_Loader.webm" type="video/webm">
+  </video>
+  <span class="milestone milestone-start" id="startLabel"></span>
+  <span class="milestone milestone-end" id="endLabel"></span>
+</div>
+
+<!-- ── NOTIFICATIONS ──────────────────────────────────────── -->
+<div class="notif-row">
+  <span class="notif-text" id="notifText"></span>
+</div>
+
+<!-- ── COMBO ──────────────────────────────────────────────── -->
+<div class="combo-row">
+  <span class="combo-text" id="comboText"></span>
+</div>
+
+<!-- ── CONTROL CONSOLE ────────────────────────────────────
+     In SE overlay editor: resize the widget height just enough
+     to show the bar + notifications during your stream, then
+     expand it temporarily when you need to change settings.
+──────────────────────────────────────────────────────── -->
+<div class="console">
+  <div class="console-header">
+    <span class="console-title">⚙ Control Console</span>
+    <span class="console-tip">Resize widget height to hide this panel during stream</span>
+    <button class="btn-action" id="btnTestNotif" style="margin-left:16px;white-space:nowrap;flex-shrink:0;">🔔 Test Notification</button>
+    <button class="btn-action" id="btnTestCombo" style="margin-left:8px;white-space:nowrap;flex-shrink:0;">⚡ Test Combo</button>
+  </div>
+
+  <div class="console-grid">
+
+    <div class="field">
+      <label>Start Milestone</label>
+      <input id="c-start" type="number" placeholder="30000">
+    </div>
+    <div class="field">
+      <label>End Milestone</label>
+      <input id="c-end" type="number" placeholder="40000">
+    </div>
+    <div class="field">
+      <label>Next Goal</label>
+      <input id="c-next" type="number" placeholder="35000">
+    </div>
+
+    <div class="field field-span3">
+      <label>YouTube API Key — console.cloud.google.com → Enable "YouTube Data API v3" → Credentials → API Key</label>
+      <input id="c-yt-key" type="password" placeholder="AIzaSy…">
+    </div>
+    <div class="field">
+      <label>YouTube Channel ID</label>
+      <input id="c-yt-channel" type="text" placeholder="UCxxxxxxxxxxxxxxxx">
+    </div>
+
+    <div class="field">
+      <label>Static Sub Count</label>
+      <input id="c-static-subs" type="number" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Auto-refresh (seconds)</label>
+      <input id="c-refresh" type="number" placeholder="600" min="600">
+    </div>
+    <div class="field actions-cell field-span2">
+      <label>​</label>
+      <div class="console-actions">
+        <button class="btn-action" id="btnRefresh">↻ Refresh</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const DEFAULTS = {
+  startMilestone:   30000,
+  endMilestone:     40000,
+  nextMilestone:    35000,
+  youtubeApiKey:    '',
+  youtubeChannelId: '',
+  refreshSeconds:   600,
+  staticSubCount:   0,
+};
+
+const CONFIG = Object.assign({}, DEFAULTS);
+
+const fmtK = n => {
+  if (n >= 1e6) return (n / 1e6) + 'M';
+  if (n >= 1e3) return (n / 1e3) + 'K';
+  return String(n);
+};
+
+function loadSaved() {
+  try {
+    Object.assign(CONFIG, JSON.parse(localStorage.getItem('subbar_config') || '{}'));
+  } catch (e) {}
+}
+
+function saveConfig() {
+  localStorage.setItem('subbar_config', JSON.stringify(CONFIG));
+}
+
+async function fetchYouTubeSubs() {
+  if (!CONFIG.youtubeApiKey || !CONFIG.youtubeChannelId) return null;
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/channels`
+              + `?part=statistics&id=${encodeURIComponent(CONFIG.youtubeChannelId)}`
+              + `&key=${encodeURIComponent(CONFIG.youtubeApiKey)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const count = data?.items?.[0]?.statistics?.subscriberCount;
+    return count != null ? parseInt(count, 10) : null;
+  } catch (e) { return null; }
+}
+
+function seekLoader(pct) {
+  const video  = document.getElementById('barLoader');
+  const canvas = document.getElementById('barCanvas');
+  if (!video || !canvas) return;
+  const targetPct = Math.max(0, Math.min(1, pct / 100));
+
+  const draw = () => {
+    if (!video.videoWidth || !video.videoHeight) return;
+    if (canvas.width  !== video.videoWidth)  canvas.width  = video.videoWidth;
+    if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch (e) {}
+  };
+
+  if (video._cleanup) { video._cleanup(); video._cleanup = null; }
+
+  const apply = () => {
+    if (!isFinite(video.duration) || video.duration <= 0) return;
+    const target = targetPct * video.duration;
+
+    if (target <= 0) {
+      video.pause();
+      video.currentTime = 0;
+      const ctx = canvas.getContext('2d');
+      if (canvas.width && canvas.height) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    let stopped = false;
+    let rafId   = 0;
+    const tick = () => {
+      if (stopped) return;
+      draw();
+      if (video.currentTime >= target) {
+        stopped = true;
+        video.pause();
+        draw();
+        return;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    video._cleanup = () => {
+      stopped = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      video.pause();
+    };
+
+    video.pause();
+    video.currentTime = 0;
+    const startPlay = () => {
+      video.removeEventListener('seeked', startPlay);
+      const p = video.play();
+      if (p && p.catch) p.catch(() => {});
+      rafId = requestAnimationFrame(tick);
+    };
+    video.addEventListener('seeked', startPlay, { once: true });
+    setTimeout(() => {
+      if (!stopped && video.currentTime === 0) startPlay();
+    }, 50);
+  };
+
+  if (video.readyState >= 2) apply();
+  else video.addEventListener('loadeddata', apply, { once: true });
+}
+
+function updateUI(fillPct) {
+  const pct = Math.max(0, Math.min(100, fillPct));
+  seekLoader(pct);
+  document.getElementById('startLabel').textContent = fmtK(CONFIG.startMilestone);
+  document.getElementById('endLabel').textContent   = fmtK(CONFIG.endMilestone);
+}
+
+let refreshTimer = null;
+
+function startRefreshTimer() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  const seconds = Math.max(600, CONFIG.refreshSeconds || 0);
+  refreshTimer = setInterval(refresh, seconds * 1000);
+}
+
+async function refresh() {
+  let count = await fetchYouTubeSubs();
+  if (count == null && CONFIG.staticSubCount > 0) count = CONFIG.staticSubCount;
+  if (count == null) { updateUI(0); return; }
+  const fillPct = (count - CONFIG.startMilestone)
+                / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
+  updateUI(fillPct);
+}
+
+function initConsole() {
+  const bindings = [
+    { id: 'c-start',      key: 'startMilestone',   parse: Number },
+    { id: 'c-end',        key: 'endMilestone',     parse: Number },
+    { id: 'c-next',       key: 'nextMilestone',    parse: Number },
+    { id: 'c-refresh',    key: 'refreshSeconds',   parse: Number },
+    { id: 'c-yt-key',     key: 'youtubeApiKey',    parse: String },
+    { id: 'c-yt-channel', key: 'youtubeChannelId', parse: String },
+  ];
+
+  for (const { id, key, parse } of bindings) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.value = CONFIG[key];
+    el.addEventListener('input', () => {
+      const raw = el.value.trim();
+      if (raw !== '') CONFIG[key] = parse(raw);
+      saveConfig();
+      refresh();
+    });
+  }
+
+  const staticSubEl = document.getElementById('c-static-subs');
+  if (staticSubEl) {
+    staticSubEl.value = CONFIG.staticSubCount || '';
+    staticSubEl.addEventListener('input', () => {
+      const raw = staticSubEl.value.trim();
+      CONFIG.staticSubCount = raw !== '' ? Number(raw) : 0;
+      saveConfig();
+      refresh();
+    });
+  }
+
+  document.getElementById('btnRefresh')?.addEventListener('click', refresh);
+  document.getElementById('btnTestCombo')?.addEventListener('click', () => addToCombo(1));
+
+  const testMessages = [
+    'RoryPlays has just joined as a member!',
+    'xXSniper99Xx has been a member for 6 months!',
+    'GiftKing gifted a membership to LuckyViewer!',
+    'MegaFan gifted 5 memberships to the community!',
+  ];
+  let testIdx = 0;
+  document.getElementById('btnTestNotif')?.addEventListener('click', () => {
+    showNotif(testMessages[testIdx % testMessages.length]);
+    testIdx++;
+  });
+}
+
+// ── Notification queue ───────────────────────────────────────────
+const notifQueue = [];
+let notifBusy = false;
+
+function showNotif(msg) {
+  notifQueue.push(msg);
+  if (!notifBusy) drainNotifQueue();
+}
+
+function drainNotifQueue() {
+  if (!notifQueue.length) { notifBusy = false; return; }
+  notifBusy = true;
+  const el = document.getElementById('notifText');
+  el.textContent = notifQueue.shift();
+  el.classList.add('visible');
+  setTimeout(() => {
+    el.classList.remove('visible');
+    setTimeout(drainNotifQueue, 450);
+  }, 4500);
+}
+
+// ── Sub combo ────────────────────────────────────────────────────
+let comboCount = 0;
+let comboTimer = null;
+const COMBO_RESET_MS = 7000;
+
+function addToCombo(n) {
+  comboCount += n;
+  if (comboTimer) clearTimeout(comboTimer);
+  comboTimer = setTimeout(resetCombo, COMBO_RESET_MS);
+  updateComboDisplay();
+}
+
+function updateComboDisplay() {
+  if (comboCount < 2) return;
+  const el = document.getElementById('comboText');
+  if (!el) return;
+  el.textContent = `×${comboCount} SUB COMBO!`;
+  el.classList.remove('hot', 'fire');
+  if      (comboCount >= 10) el.classList.add('fire');
+  else if (comboCount >= 5)  el.classList.add('hot');
+  el.classList.add('visible');
+  el.classList.remove('bump');
+  requestAnimationFrame(() => el.classList.add('bump'));
+}
+
+function resetCombo() {
+  comboCount = 0;
+  comboTimer = null;
+  const el = document.getElementById('comboText');
+  if (el) el.classList.remove('visible', 'hot', 'fire', 'bump');
+}
+
+// ── Boot ─────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  loadSaved();
+  initConsole();
+  refresh();
+  startRefreshTimer();
+});
+
+// ── StreamElements live events ────────────────────────────────────
+// Fires automatically inside the SE overlay runtime for every stream
+// event (new member, gifted membership, Super Chat, etc).
+window.addEventListener('onEventReceived', (obj) => {
+  const e        = obj?.detail?.event;
+  const listener = obj?.detail?.listener;
+  if (!e) return;
+
+  const name  = e.sender || e.name || e.username || 'Someone';
+  const count = parseInt(e.amount || e.gifted || 1, 10);
+
+  switch (listener) {
+    case 'subscriber-latest':
+      if (e.gifted) {
+        showNotif(`${e.gifter || 'Someone'} gifted a membership to ${name}!`);
+      } else {
+        const months = e.months > 1 ? ` (${e.months} months!)` : '';
+        showNotif(`${name} just joined as a member!${months}`);
+      }
+      addToCombo(1);
+      break;
+
+    case 'bulkgiftsub-latest':
+    case 'communityGiftPurchase-latest':
+      showNotif(`${name} gifted ${count} membership${count !== 1 ? 's' : ''} to the community!`);
+      addToCombo(count);
+      break;
+
+    case 'superchat-latest':
+      showNotif(`${name} sent a Super Chat${e.message ? ': ' + e.message : ''}!`);
+      break;
+
+    case 'tip-latest':
+      showNotif(`${name} tipped${e.amount ? ' £' + e.amount : ''}!`);
+      break;
+
+    default:
+      break;
+  }
+});
+
+window.addEventListener('onWidgetLoad', () => {});
+</script>
+</body>
+</html>
