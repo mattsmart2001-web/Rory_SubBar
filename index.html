@@ -615,6 +615,7 @@ function initConsole() {
       if (raw !== '') CONFIG[key] = parse(raw);
       saveConfig();
       refresh();
+      if (key === 'seJwt') connectSESocket();
     });
   }
 
@@ -718,12 +719,73 @@ function resetCombo() {
   if (el) el.classList.remove('visible', 'hot', 'fire', 'bump');
 }
 
+// ── StreamElements real-time WebSocket ───────────────────────────
+let seSocket = null;
+
+function connectSESocket() {
+  if (seSocket) { seSocket.disconnect(); seSocket = null; }
+  if (!CONFIG.seJwt) return;
+
+  const init = () => {
+    seSocket = window.io('https://realtime.streamelements.com', {
+      transports: ['websocket']
+    });
+
+    seSocket.on('connect', () => {
+      seSocket.emit('authenticate', { method: 'jwt', token: CONFIG.seJwt });
+    });
+
+    seSocket.on('event', (data) => {
+      const type = data?.type;
+      const d    = data?.data || {};
+      const name = d.username || d.sender || d.name || 'Someone';
+      const n    = parseInt(d.amount || d.count || 1, 10);
+
+      switch (type) {
+        case 'subscriber':
+          if (d.gifted) {
+            showNotif(`${d.gifter || 'Someone'} gifted a membership to ${name}!`);
+          } else {
+            const months = d.months > 1 ? ` (${d.months} months!)` : '';
+            showNotif(`${name} just joined as a member!${months}`);
+          }
+          addToCombo(1);
+          break;
+        case 'communityGiftPurchase':
+          showNotif(`${name} gifted ${n} membership${n !== 1 ? 's' : ''} to the community!`);
+          addToCombo(n);
+          break;
+        case 'superchat':
+          showNotif(`${name} sent a Super Chat${d.message ? ': ' + d.message : ''}!`);
+          break;
+        case 'tip':
+          showNotif(`${name} tipped${d.amount ? ' £' + d.amount : ''}!`);
+          break;
+      }
+    });
+
+    seSocket.on('disconnect', () => {
+      setTimeout(() => { if (CONFIG.seJwt) connectSESocket(); }, 10000);
+    });
+  };
+
+  if (window.io) {
+    init();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.streamelements.com/socket/socket.io.js';
+    s.onload = init;
+    document.head.appendChild(s);
+  }
+}
+
 // ── Boot ─────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   loadSaved();
   initConsole();
   refresh();
   startRefreshTimer();
+  connectSESocket();
 });
 
 // ── StreamElements overlay event integration ──────────────────────
