@@ -388,9 +388,15 @@
       <input id="c-next" type="number" placeholder="35000">
     </div>
 
-    <!-- YouTube API -->
+    <!-- StreamElements JWT (preferred) -->
+    <div class="field field-span4">
+      <label>StreamElements JWT — streamelements.com → Account → Show Secrets → JWT Token</label>
+      <input id="c-se-jwt" type="password" placeholder="eyJhbGci…">
+    </div>
+
+    <!-- YouTube API (fallback if no SE JWT) -->
     <div class="field field-span3">
-      <label>YouTube API Key — console.cloud.google.com → Enable "YouTube Data API v3" → Credentials → API Key</label>
+      <label>YouTube API Key (fallback) — console.cloud.google.com → Enable "YouTube Data API v3" → Credentials → API Key</label>
       <input id="c-yt-key" type="password" placeholder="AIzaSy…">
     </div>
     <div class="field">
@@ -426,7 +432,8 @@ const DEFAULTS = {
   startMilestone:  30000,         // Left end of bar
   endMilestone:    40000,         // Right end of bar
   nextMilestone:   35000,         // Next milestone label
-  youtubeApiKey:   '',            // YouTube Data API key (free) — primary count source
+  seJwt:           '',            // SE JWT — primary count source (works for YT-linked accounts)
+  youtubeApiKey:   '',            // YouTube Data API key — fallback if no SE JWT
   youtubeChannelId: '',           // YouTube channel ID (UCxxxxxxx)
   refreshSeconds:  600,           // Auto-refresh interval (seconds)
   staticSubCount:  0,             // Manual override if APIs unavailable
@@ -451,6 +458,22 @@ function loadSaved() {
 
 function saveConfig() {
   localStorage.setItem('subbar_config', JSON.stringify(CONFIG));
+}
+
+// ── StreamElements API ───────────────────────────────────────────
+// Works for both YouTube and Twitch-linked SE accounts.
+// YouTube accounts: data.subscribers holds the count.
+async function fetchSECount() {
+  if (!CONFIG.seJwt) return null;
+  try {
+    const res = await fetch('https://api.streamelements.com/kappa/v2/channels/me', {
+      headers: { 'Authorization': 'Bearer ' + CONFIG.seJwt }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const count = data?.subscribers ?? data?.followers ?? null;
+    return count != null ? parseInt(count, 10) : null;
+  } catch (e) { return null; }
 }
 
 // ── YouTube Data API ─────────────────────────────────────────────
@@ -562,7 +585,8 @@ function startRefreshTimer() {
 }
 
 async function refresh() {
-  let count = await fetchYouTubeSubs();
+  let count = await fetchSECount();
+  if (count == null) count = await fetchYouTubeSubs();
   if (count == null && CONFIG.staticSubCount > 0) count = CONFIG.staticSubCount;
   if (count == null) { updateUI(0); return; }
   const fillPct = (count - CONFIG.startMilestone)
@@ -577,6 +601,7 @@ function initConsole() {
     { id: 'c-end',         key: 'endMilestone',     parse: Number },
     { id: 'c-next',        key: 'nextMilestone',    parse: Number },
     { id: 'c-refresh',     key: 'refreshSeconds',   parse: Number },
+    { id: 'c-se-jwt',      key: 'seJwt',            parse: String },
     { id: 'c-yt-key',      key: 'youtubeApiKey',    parse: String },
     { id: 'c-yt-channel',  key: 'youtubeChannelId', parse: String },
   ];
