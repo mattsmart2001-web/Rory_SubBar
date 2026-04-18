@@ -390,7 +390,7 @@
 
     <!-- StreamElements JWT (preferred) -->
     <div class="field field-span4">
-      <label>StreamElements JWT — streamelements.com → Account → Show Secrets → JWT Token</label>
+      <label>StreamElements JWT — streamelements.com → Account → Show Secrets → JWT Token &nbsp;<span id="se-status" class="status auth-off">● disconnected</span></label>
       <input id="c-se-jwt" type="password" placeholder="eyJhbGci…">
     </div>
 
@@ -726,45 +726,64 @@ function connectSESocket() {
   if (seSocket) { seSocket.disconnect(); seSocket = null; }
   if (!CONFIG.seJwt) return;
 
+  const setStatus = (cls, txt) => {
+    const el = document.getElementById('se-status');
+    if (el) { el.className = 'status ' + cls; el.textContent = '● ' + txt; }
+  };
+
+  const handleEvent = (data) => {
+    console.log('[SE event]', JSON.stringify(data));
+    const type = data?.type;
+    const d    = data?.data || {};
+    const name = d.username || d.sender || d.name || 'Someone';
+    const n    = parseInt(d.amount || d.count || 1, 10);
+
+    switch (type) {
+      case 'subscriber':
+        if (d.gifted) {
+          showNotif(`${d.gifter || 'Someone'} gifted a membership to ${name}!`);
+        } else {
+          const months = d.months > 1 ? ` (${d.months} months!)` : '';
+          showNotif(`${name} just joined as a member!${months}`);
+        }
+        addToCombo(1);
+        break;
+      case 'communityGiftPurchase':
+        showNotif(`${name} gifted ${n} membership${n !== 1 ? 's' : ''} to the community!`);
+        addToCombo(n);
+        break;
+      case 'superchat':
+        showNotif(`${name} sent a Super Chat${d.message ? ': ' + d.message : ''}!`);
+        break;
+      case 'tip':
+        showNotif(`${name} tipped${d.amount ? ' £' + d.amount : ''}!`);
+        break;
+      default:
+        // Unknown event type — still log so we can see the raw shape
+        break;
+    }
+  };
+
   const init = () => {
+    setStatus('loading', 'connecting…');
     seSocket = window.io('https://realtime.streamelements.com', {
       transports: ['websocket']
     });
 
-    seSocket.on('connect', () => {
+    seSocket.on('connect',    () => {
+      setStatus('loading', 'authenticating…');
       seSocket.emit('authenticate', { method: 'jwt', token: CONFIG.seJwt });
     });
+    seSocket.on('authenticated',  () => setStatus('live',  'connected'));
+    seSocket.on('unauthorized',   () => setStatus('error', 'bad JWT'));
+    seSocket.on('connect_error',  () => setStatus('error', 'error'));
 
-    seSocket.on('event', (data) => {
-      const type = data?.type;
-      const d    = data?.data || {};
-      const name = d.username || d.sender || d.name || 'Someone';
-      const n    = parseInt(d.amount || d.count || 1, 10);
-
-      switch (type) {
-        case 'subscriber':
-          if (d.gifted) {
-            showNotif(`${d.gifter || 'Someone'} gifted a membership to ${name}!`);
-          } else {
-            const months = d.months > 1 ? ` (${d.months} months!)` : '';
-            showNotif(`${name} just joined as a member!${months}`);
-          }
-          addToCombo(1);
-          break;
-        case 'communityGiftPurchase':
-          showNotif(`${name} gifted ${n} membership${n !== 1 ? 's' : ''} to the community!`);
-          addToCombo(n);
-          break;
-        case 'superchat':
-          showNotif(`${name} sent a Super Chat${d.message ? ': ' + d.message : ''}!`);
-          break;
-        case 'tip':
-          showNotif(`${name} tipped${d.amount ? ' £' + d.amount : ''}!`);
-          break;
-      }
-    });
+    // Live events and SE emulate both fire on 'event' or 'event:test'
+    seSocket.on('event',      handleEvent);
+    seSocket.on('event:test', handleEvent);
 
     seSocket.on('disconnect', () => {
+      setStatus('auth-off', 'disconnected');
       setTimeout(() => { if (CONFIG.seJwt) connectSESocket(); }, 10000);
     });
   };
