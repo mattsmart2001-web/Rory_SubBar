@@ -700,6 +700,55 @@ window.addEventListener('load', () => {
   refresh();
   startRefreshTimer();
 });
+
+// ── StreamElements overlay event integration ──────────────────────
+// In OBS add this page as a Browser Source and paste your StreamElements
+// overlay URL — SE injects its widget API into the page which fires
+// onEventReceived for every stream event (memberships, gifts, etc).
+window.addEventListener('onEventReceived', (obj) => {
+  const e = obj?.detail?.event;
+  const listener = obj?.detail?.listener;
+  if (!e) return;
+
+  const name  = e.sender   || e.name   || e.username  || 'Someone';
+  const count = e.amount   || e.gifted || 1;
+
+  switch (listener) {
+    // New member / subscriber
+    case 'subscriber-latest':
+      if (e.gifted) {
+        showNotif(`${e.gifter || 'Someone'} gifted a membership to ${name}!`);
+      } else {
+        const months = e.months > 1 ? ` (${e.months} months!)` : '';
+        showNotif(`${name} just joined as a member!${months}`);
+      }
+      addToCombo(1);
+      break;
+
+    // Bulk community gift (e.g. "gifted 5 memberships")
+    case 'bulkgiftsub-latest':
+    case 'communityGiftPurchase-latest':
+      showNotif(`${name} gifted ${count} membership${count !== 1 ? 's' : ''} to the community!`);
+      addToCombo(count);
+      break;
+
+    // Super Chat / Super Sticker
+    case 'superchat-latest':
+      showNotif(`${name} sent a Super Chat: ${e.message || ''}`);
+      break;
+
+    // Tip / donation
+    case 'tip-latest':
+      showNotif(`${name} tipped ${e.amount ? '£' + e.amount : ''}!`);
+      break;
+
+    default:
+      break;
+  }
+});
+
+// Also handle the SE session-start ping so the overlay knows it's connected.
+window.addEventListener('onWidgetLoad', () => {});
 </script>
 </body>
 </html>
