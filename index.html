@@ -331,7 +331,7 @@
 <!-- ── BAR ─────────────────────────────────────────────── -->
 <div class="bar-container">
   <img class="bar-bg" src="BG.png" alt="">
-  <video class="bar-loader" id="barLoader" autoplay muted loop playsinline preload="auto">
+  <video class="bar-loader" id="barLoader" muted playsinline preload="auto">
     <source src="Loader.webm" type="video/webm">
   </video>
   <span class="milestone milestone-start" id="startLabel"></span>
@@ -480,16 +480,17 @@ async function fetchStreamElementsSubs() {
 // Loader.webm contains the whole empty→full animation. We jump to the
 // frame that represents the current progress and freeze the video
 // there. A transparent webm paused in Chromium/OBS often stops
-// painting, so we set playbackRate to 0 and keep it "playing" —
-// the frame stays visible and doesn't advance.
+// painting. Seek to the target frame then call play().then(pause) so
+// Chromium decodes and paints the frame before stopping.
 function seekLoader(pct) {
   const video = document.getElementById('barLoader');
   if (!video) return;
   const apply = () => {
     if (!isFinite(video.duration) || video.duration <= 0) return;
     video.currentTime = (pct / 100) * video.duration;
-    video.playbackRate = 0;
-    if (video.paused) video.play().catch(() => {});
+    // play() forces Chromium to decode and paint the seeked frame;
+    // pause() immediately stops it there.
+    video.play().then(() => video.pause()).catch(() => {});
   };
   if (video.readyState >= 2) apply();
   else video.addEventListener('loadeddata', apply, { once: true });
