@@ -57,6 +57,16 @@
       object-fit: fill;
       pointer-events: none;
     }
+    /* Hidden video element used only to decode Loader.webm; the
+       visible bar is the canvas, because OBS CEF refuses to repaint
+       a paused <video> tag. */
+    .bar-loader-src {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
 
     /* ── Notification row ─────────────────── */
     .notif-row {
@@ -332,7 +342,8 @@
 <!-- ── BAR ─────────────────────────────────────────────── -->
 <div class="bar-container">
   <img class="bar-bg" src="BG.png" alt="">
-  <video class="bar-loader" id="barLoader" muted playsinline preload="auto">
+  <canvas class="bar-loader" id="barCanvas"></canvas>
+  <video class="bar-loader-src" id="barLoader" muted playsinline preload="auto" crossorigin="anonymous">
     <source src="Loader.webm" type="video/webm">
   </video>
   <span class="milestone milestone-start" id="startLabel"></span>
@@ -460,16 +471,33 @@ async function fetchYouTubeSubs() {
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
-// Jump the loader straight to the frame matching the current fill %.
+// OBS CEF won't repaint a paused <video>, so we decode Loader.webm
+// in a hidden video element and draw the seeked frame onto a canvas.
 function seekLoader(pct) {
-  const video = document.getElementById('barLoader');
-  if (!video) return;
+  const video  = document.getElementById('barLoader');
+  const canvas = document.getElementById('barCanvas');
+  if (!video || !canvas) return;
   const targetPct = Math.max(0, Math.min(1, pct / 100));
+
+  const draw = () => {
+    if (!video.videoWidth || !video.videoHeight) return;
+    if (canvas.width  !== video.videoWidth)  canvas.width  = video.videoWidth;
+    if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch (e) {}
+  };
+
   const apply = () => {
     if (!isFinite(video.duration) || video.duration <= 0) return;
     video.pause();
+    video.addEventListener('seeked', function onSeek() {
+      video.removeEventListener('seeked', onSeek);
+      draw();
+    }, { once: true });
     video.currentTime = targetPct * video.duration;
   };
+
   if (video.readyState >= 2) apply();
   else video.addEventListener('loadeddata', apply, { once: true });
 }
