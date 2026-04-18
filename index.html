@@ -55,8 +55,8 @@
       position: absolute;
       top: 0;
       left: 0;
-      height: 100%;
-      width: 0%;
+      bottom: 0;    /* anchor both edges — more reliable than height:100% */
+      width: 0%;    /* updated by JS to fill% */
       overflow: hidden;
       pointer-events: none;
     }
@@ -65,8 +65,8 @@
       position: absolute;
       top: 0;
       left: 0;
+      bottom: 0;
       width: 1280px; /* fixed full-bar width so wrapper clips, not squishes */
-      height: 100%;
       object-fit: fill;
     }
 
@@ -152,7 +152,7 @@
        Milestones sit 5px below that, inside bar-container. */
     .milestone {
       position: absolute;
-      top: 122px;
+      top: 142px;
       color: #fff;
       font-family: 'Third Rail', 'Arial Black', sans-serif;
       font-size: 20px;
@@ -734,6 +734,9 @@ function connectSESocket() {
 window.addEventListener('load', () => {
   loadSaved();
   initConsole();
+  // Ensure the loader video is playing (autoplay can be blocked in some
+  // OBS builds; this explicit call is a reliable fallback).
+  document.getElementById('barLoader')?.play().catch(() => {});
   refresh();
   startRefreshTimer();
   connectSESocket();
