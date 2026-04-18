@@ -27,9 +27,10 @@
     }
 
     /* ════════════════════════════════════════
-       BAR — BG.png is the pill; Loader.webm is the animated fill.
-       The video is clipped with clip-path from 100% → 0% (right side)
-       so as subs grow, more of the loop is revealed left-to-right.
+       BAR — BG.png is the pill; Loader.webm animates the full progress
+       internally. We seek the video's currentTime to the frame that
+       matches (currentSubs − start) / (end − start), and pause it
+       there so it stays visible.
     ════════════════════════════════════════ */
     .bar-container {
       position: relative;
@@ -49,8 +50,6 @@
       width: 100%;
       height: 100%;
       object-fit: fill;
-      clip-path: inset(0 100% 0 0);
-      transition: clip-path 0.6s ease;
       pointer-events: none;
     }
 
@@ -58,7 +57,7 @@
     .notif-row {
       width: 1280px;
       height: 38px;
-      margin-top: 2px;
+      margin-top: -50px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -329,7 +328,7 @@
 <!-- ── BAR ─────────────────────────────────────────────── -->
 <div class="bar-container">
   <img class="bar-bg" src="BG.png" alt="">
-  <video class="bar-loader" id="barLoader" autoplay loop muted playsinline>
+  <video class="bar-loader" id="barLoader" muted playsinline preload="auto">
     <source src="Loader.webm" type="video/webm">
   </video>
   <span class="milestone milestone-start" id="startLabel"></span>
@@ -475,9 +474,24 @@ async function fetchStreamElementsSubs() {
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
+// Loader.webm contains the whole empty→full animation. We jump to the
+// frame that represents the current progress and pause there, so the
+// bar is always visible at the right position.
+function seekLoader(pct) {
+  const video = document.getElementById('barLoader');
+  if (!video) return;
+  const apply = () => {
+    if (!isFinite(video.duration) || video.duration <= 0) return;
+    video.pause();
+    video.currentTime = (pct / 100) * video.duration;
+  };
+  if (video.readyState >= 1) apply();
+  else video.addEventListener('loadedmetadata', apply, { once: true });
+}
+
 function updateUI(fillPct) {
   const pct = Math.max(0, Math.min(100, fillPct));
-  document.getElementById('barLoader').style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+  seekLoader(pct);
   document.getElementById('startLabel').textContent = fmtK(CONFIG.startMilestone);
   document.getElementById('endLabel').textContent   = fmtK(CONFIG.endMilestone);
 }
