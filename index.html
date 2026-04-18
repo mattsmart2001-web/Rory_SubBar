@@ -460,39 +460,18 @@ async function fetchYouTubeSubs() {
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
-// OBS Browser Source silently rejects video.play() in some builds, so
-// instead of relying on real playback we manually drive currentTime
-// from 0 → target over ~2 s with requestAnimationFrame. Works in both
-// Chrome and OBS because it doesn't touch the playback engine.
+// Jump the loader straight to the frame matching the current fill %.
 function seekLoader(pct) {
   const video = document.getElementById('barLoader');
   if (!video) return;
   const targetPct = Math.max(0, Math.min(1, pct / 100));
-
-  if (video._rafId) {
-    cancelAnimationFrame(video._rafId);
-    video._rafId = null;
-  }
-
-  const animate = () => {
+  const apply = () => {
     if (!isFinite(video.duration) || video.duration <= 0) return;
-    const stopAt = targetPct * video.duration;
     video.pause();
-    if (stopAt <= 0) { video.currentTime = 0; return; }
-
-    const start       = performance.now();
-    const durationMs  = 2000;
-    const step = (now) => {
-      const progress = Math.min(1, (now - start) / durationMs);
-      video.currentTime = progress * stopAt;
-      if (progress < 1) video._rafId = requestAnimationFrame(step);
-      else              video._rafId = null;
-    };
-    video._rafId = requestAnimationFrame(step);
+    video.currentTime = targetPct * video.duration;
   };
-
-  if (video.readyState >= 2) animate();
-  else video.addEventListener('loadeddata', animate, { once: true });
+  if (video.readyState >= 2) apply();
+  else video.addEventListener('loadeddata', apply, { once: true });
 }
 
 function updateUI(fillPct) {
