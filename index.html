@@ -471,8 +471,10 @@ async function fetchYouTubeSubs() {
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
-// OBS CEF won't repaint a paused <video>, so we decode Loader.webm
-// in a hidden video element and draw the seeked frame onto a canvas.
+// OBS CEF can't seek a webm to a non-keyframe — every seek lands on
+// the previous keyframe (often frame 1). To land on the right frame
+// reliably we play the hidden video forward, copy each frame to the
+// canvas, and pause once we cross the target time.
 function seekLoader(pct) {
   const video  = document.getElementById('barLoader');
   const canvas = document.getElementById('barCanvas');
@@ -488,14 +490,53 @@ function seekLoader(pct) {
     try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch (e) {}
   };
 
+  // Cancel any in-progress drive from a previous refresh
+  if (video._cleanup) { video._cleanup(); video._cleanup = null; }
+
   const apply = () => {
     if (!isFinite(video.duration) || video.duration <= 0) return;
-    video.pause();
-    video.addEventListener('seeked', function onSeek() {
-      video.removeEventListener('seeked', onSeek);
+    const target = targetPct * video.duration;
+
+    if (target <= 0) {
+      video.pause();
+      video.currentTime = 0;
+      const ctx = canvas.getContext('2d');
+      if (canvas.width && canvas.height) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    let stopped = false;
+    let rafId   = 0;
+    const tick = () => {
+      if (stopped) return;
       draw();
-    }, { once: true });
-    video.currentTime = targetPct * video.duration;
+      if (video.currentTime >= target) {
+        stopped = true;
+        video.pause();
+        draw();
+        return;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    video._cleanup = () => {
+      stopped = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      video.pause();
+    };
+
+    video.pause();
+    video.currentTime = 0;
+    const startPlay = () => {
+      video.removeEventListener('seeked', startPlay);
+      const p = video.play();
+      if (p && p.catch) p.catch(() => {});
+      rafId = requestAnimationFrame(tick);
+    };
+    video.addEventListener('seeked', startPlay, { once: true });
+    // Some CEF builds skip the seeked event when already at 0; nudge after a tick.
+    setTimeout(() => {
+      if (!stopped && video.currentTime === 0) startPlay();
+    }, 50);
   };
 
   if (video.readyState >= 2) apply();
