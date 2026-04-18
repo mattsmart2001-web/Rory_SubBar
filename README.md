@@ -71,7 +71,6 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 | `startMilestone` | `30000` | Left end of bar |
 | `endMilestone` | `40000` | Right end of bar |
 | `nextMilestone` | `35000` | Next milestone label |
-| `subPillColor` | `'#2d3f6e'` | Sub counter pill colour |
 | `streamElementsJwt` | `''` | SE JWT — positions the bar |
 | `refreshSeconds` | `60` | Auto-refresh interval |
 | `staticSubCount` | `0` | Static subscriber count shown under bar |
