@@ -17,10 +17,18 @@ A live sub bar & membership progress bar overlay for OBS. Shows your member prog
 
 ---
 
-## Profile Picture
+## Bar graphics
 
-Drop your headshot in the same folder as `index.html`, name it `profile.jpg`.
-To use a different name or URL, update the **Profile Pic** field in the control console.
+Drop two files next to `index.html`:
+
+- `BG.png` — the background pill the loader sits on
+- `Loader.webm` — the animated fill that grows left-to-right as subs rise
+
+Both are stretched to the overlay's full width. The loader is clipped via
+`clip-path` so the visible portion equals
+`(currentSubs − startMilestone) / (endMilestone − startMilestone)`.
+
+Use a WebM with an alpha channel (VP9 / VP8 w/ alpha) for transparency.
 
 ---
 
@@ -53,7 +61,7 @@ The JWT also drives the bar fill (auto-refresh every N seconds). If you prefer t
 ## Control Console
 
 Everything is configurable from the panel inside `index.html` — no code editing needed.
-Colour fields accept **hex values only** (e.g. `#5ee8fc`) so they work through the OBS *Interact* window, which can't open native colour-picker popups.
+The colour field takes a 6-character hex value (no `#` needed — it's pre-printed next to the input) so it works through the OBS *Interact* window, which can't open native colour-picker popups.
 
 In OBS, alt-drag the **bottom edge** of the browser source upward to crop out the console so only the bar shows on stream.
 
@@ -63,10 +71,6 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 | `startMilestone` | `30000` | Left end of bar |
 | `endMilestone` | `40000` | Right end of bar |
 | `nextMilestone` | `35000` | Next milestone label |
-| `profilePicUrl` | `'profile.jpg'` | Local filename or URL |
-| `barColor` | `'#5ee8fc'` | Bar fill colour |
-| `trackColor` | `'#2c3d5e'` | Unfilled slot colour |
-| `pillColor` | `'#2d3f6e'` | Background pill colour |
 | `subPillColor` | `'#2d3f6e'` | Sub counter pill colour |
 | `streamElementsJwt` | `''` | SE JWT — positions the bar |
 | `refreshSeconds` | `60` | Auto-refresh interval |
@@ -89,6 +93,7 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 
 ```
 Rory_SubBar/
-├── index.html     # OBS browser source — the whole overlay
-└── profile.jpg    # Your headshot (add this yourself)
+├── index.html    # OBS browser source — the whole overlay
+├── BG.png        # Background pill graphic (add this yourself)
+└── Loader.webm   # Animated fill loop (add this yourself)
 ```
