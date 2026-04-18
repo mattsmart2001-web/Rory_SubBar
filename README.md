@@ -71,9 +71,11 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 | `startMilestone` | `30000` | Left end of bar |
 | `endMilestone` | `40000` | Right end of bar |
 | `nextMilestone` | `35000` | Next milestone label |
-| `streamElementsJwt` | `''` | SE JWT — positions the bar |
+| `youtubeApiKey` | `''` | YouTube Data API key (free) — primary count source |
+| `youtubeChannelId` | `''` | YouTube channel ID (UCxxxxxxx) |
+| `streamElementsJwt` | `''` | SE JWT — notifications only (Twitch-linked accounts won't return YT subs) |
 | `refreshSeconds` | `60` | Auto-refresh interval |
-| `staticSubCount` | `0` | Static subscriber count shown under bar |
+| `staticSubCount` | `0` | Manual override if APIs unavailable |
 <!-- CONFIG_TABLE_END -->
 
 ---

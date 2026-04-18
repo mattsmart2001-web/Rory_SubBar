@@ -377,9 +377,19 @@
       <input id="c-next" type="number" placeholder="35000">
     </div>
 
-    <!-- Row 3: SE JWT -->
+    <!-- YouTube API -->
+    <div class="field field-span3">
+      <label>YouTube API Key — console.cloud.google.com → Enable "YouTube Data API v3" → Credentials → API Key</label>
+      <input id="c-yt-key" type="password" placeholder="AIzaSy…">
+    </div>
+    <div class="field">
+      <label>YouTube Channel ID</label>
+      <input id="c-yt-channel" type="text" placeholder="UCxxxxxxxxxxxxxxxx">
+    </div>
+
+    <!-- Row 3: SE JWT (for notifications; Twitch-linked accounts won't return YT subs) -->
     <div class="field field-span4">
-      <label>StreamElements JWT — positions the bar (streamelements.com → profile → Show Secrets)</label>
+      <label>StreamElements JWT — live notifications (streamelements.com → profile → Show Secrets)</label>
       <input id="c-se-jwt" type="password" placeholder="eyJ…">
     </div>
 
@@ -419,9 +429,11 @@ const DEFAULTS = {
   startMilestone:  30000,         // Left end of bar
   endMilestone:    40000,         // Right end of bar
   nextMilestone:   35000,         // Next milestone label
-  streamElementsJwt: '',          // SE JWT — positions the bar
+  youtubeApiKey:   '',            // YouTube Data API key (free) — primary count source
+  youtubeChannelId: '',           // YouTube channel ID (UCxxxxxxx)
+  streamElementsJwt: '',          // SE JWT — notifications only (Twitch-linked accounts won't return YT subs)
   refreshSeconds:  60,            // Auto-refresh interval
-  staticSubCount:  0,             // Static subscriber count shown under bar
+  staticSubCount:  0,             // Manual override if APIs unavailable
 };
 
 const CONFIG = Object.assign({}, DEFAULTS);
@@ -457,6 +469,23 @@ function setSeBadge(state) {
 
 // ── StreamElements fetch ──────────────────────────────────────────
 // Badge reflects the HTTP response only (JWT valid vs not).
+// ── YouTube Data API ─────────────────────────────────────────────
+// Free API key: console.cloud.google.com → New project → Library →
+// "YouTube Data API v3" → Enable → Credentials → Create API Key.
+async function fetchYouTubeSubs() {
+  if (!CONFIG.youtubeApiKey || !CONFIG.youtubeChannelId) return null;
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/channels`
+              + `?part=statistics&id=${encodeURIComponent(CONFIG.youtubeChannelId)}`
+              + `&key=${encodeURIComponent(CONFIG.youtubeApiKey)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const count = data?.items?.[0]?.statistics?.subscriberCount;
+    return count != null ? parseInt(count, 10) : null;
+  } catch (e) { return null; }
+}
+
 let lastSeResponse = null; // stored so the debug button can show it
 
 async function fetchStreamElementsSubs() {
@@ -524,10 +553,11 @@ function startRefreshTimer() {
 
 async function refresh() {
   let count = null;
-  if (CONFIG.streamElementsJwt) count = await fetchStreamElementsSubs();
-  // Fall back to the manual count when SE doesn't have a number for us
-  // (e.g. YouTube channels). This also prevents auto-refresh from wiping
-  // a static count the user just typed.
+  // YouTube Data API is the primary source for YouTube streamers
+  if (count == null) count = await fetchYouTubeSubs();
+  // SE JWT works for Twitch-linked SE accounts (won't return YT subs)
+  if (count == null && CONFIG.streamElementsJwt) count = await fetchStreamElementsSubs();
+  // Manual fallback
   if (count == null && CONFIG.staticSubCount > 0) count = CONFIG.staticSubCount;
   if (count == null) { updateUI(0); return; }
   const fillPct = (count - CONFIG.startMilestone)
@@ -538,10 +568,12 @@ async function refresh() {
 // ── Console wiring ───────────────────────────────────────────────
 function initConsole() {
   const bindings = [
-    { id: 'c-start',       key: 'startMilestone', parse: Number },
-    { id: 'c-end',         key: 'endMilestone',   parse: Number },
-    { id: 'c-next',        key: 'nextMilestone',  parse: Number },
-    { id: 'c-refresh',     key: 'refreshSeconds', parse: Number },
+    { id: 'c-start',       key: 'startMilestone',   parse: Number },
+    { id: 'c-end',         key: 'endMilestone',     parse: Number },
+    { id: 'c-next',        key: 'nextMilestone',    parse: Number },
+    { id: 'c-refresh',     key: 'refreshSeconds',   parse: Number },
+    { id: 'c-yt-key',      key: 'youtubeApiKey',    parse: String },
+    { id: 'c-yt-channel',  key: 'youtubeChannelId', parse: String },
   ];
 
   for (const { id, key, parse } of bindings) {
