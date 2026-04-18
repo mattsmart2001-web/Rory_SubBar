@@ -387,13 +387,7 @@
       <input id="c-yt-channel" type="text" placeholder="UCxxxxxxxxxxxxxxxx">
     </div>
 
-    <!-- Row 3: SE JWT (for notifications; Twitch-linked accounts won't return YT subs) -->
-    <div class="field field-span4">
-      <label>StreamElements JWT — live notifications (streamelements.com → profile → Show Secrets)</label>
-      <input id="c-se-jwt" type="password" placeholder="eyJ…">
-    </div>
-
-    <!-- Row 3: actions -->
+    <!-- Actions -->
     <div class="field">
       <label>Static Sub Count</label>
       <input id="c-static-subs" type="number" placeholder="0">
@@ -405,16 +399,8 @@
     <div class="field actions-cell field-span2">
       <label>​</label>
       <div class="console-actions">
-        <button class="btn-action btn-disconnect" id="btnClearSE">✕ Clear SE</button>
-        <span class="status auth-off" id="seBadge">● SE: not connected</span>
         <button class="btn-action" id="btnRefresh">↻ Refresh</button>
-        <button class="btn-action" id="btnSeDebug" style="margin-left:8px">🔍 SE data</button>
       </div>
-    </div>
-    <div class="field field-span4" id="seDebugRow" style="display:none">
-      <label>RAW SE RESPONSE (find the key with your sub count)</label>
-      <textarea id="seDebugOut" readonly rows="6"
-        style="width:100%;font-size:11px;font-family:monospace;background:#0a1020;color:#9cf;border:1px solid #334;padding:4px;resize:vertical"></textarea>
     </div>
 
   </div>
@@ -431,7 +417,6 @@ const DEFAULTS = {
   nextMilestone:   35000,         // Next milestone label
   youtubeApiKey:   '',            // YouTube Data API key (free) — primary count source
   youtubeChannelId: '',           // YouTube channel ID (UCxxxxxxx)
-  streamElementsJwt: '',          // SE JWT — notifications only (Twitch-linked accounts won't return YT subs)
   refreshSeconds:  60,            // Auto-refresh interval
   staticSubCount:  0,             // Manual override if APIs unavailable
 };
@@ -457,18 +442,6 @@ function saveConfig() {
   localStorage.setItem('subbar_config', JSON.stringify(CONFIG));
 }
 
-// ── SE badge ─────────────────────────────────────────────────────
-function setSeBadge(state) {
-  const el = document.getElementById('seBadge');
-  if (!el) return;
-  el.className = 'status ' + state;
-  el.textContent = state === 'auth-on'  ? '● SE: connected ✓'
-                 : state === 'loading'  ? '● SE: checking…'
-                 :                        '● SE: not connected';
-}
-
-// ── StreamElements fetch ──────────────────────────────────────────
-// Badge reflects the HTTP response only (JWT valid vs not).
 // ── YouTube Data API ─────────────────────────────────────────────
 // Free API key: console.cloud.google.com → New project → Library →
 // "YouTube Data API v3" → Enable → Credentials → Create API Key.
@@ -484,35 +457,6 @@ async function fetchYouTubeSubs() {
     const count = data?.items?.[0]?.statistics?.subscriberCount;
     return count != null ? parseInt(count, 10) : null;
   } catch (e) { return null; }
-}
-
-let lastSeResponse = null; // stored so the debug button can show it
-
-async function fetchStreamElementsSubs() {
-  if (!CONFIG.streamElementsJwt) return null;
-  try {
-    const res = await fetch('https://api.streamelements.com/kappa/v2/channels/me', {
-      headers: { Authorization: `Bearer ${CONFIG.streamElementsJwt}` }
-    });
-    if (!res.ok) { setSeBadge('auth-off'); return null; }
-    setSeBadge('auth-on');
-    const data = await res.json();
-    lastSeResponse = data;
-    const pt    = data?.providerTotals || {};
-    const stats = data?.stats         || {};
-    const count = pt['subscriber-total']
-               ?? pt['subscribers']
-               ?? pt['member-total']
-               ?? pt['members']
-               ?? stats['subscribers']
-               ?? stats['subscriber-total']
-               ?? stats['followerCount']
-               ?? null;
-    return count != null ? parseInt(count, 10) : null;
-  } catch (e) {
-    setSeBadge('auth-off');
-    return null;
-  }
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
@@ -546,18 +490,11 @@ let refreshTimer = null;
 
 function startRefreshTimer() {
   if (refreshTimer) clearInterval(refreshTimer);
-  if (CONFIG.streamElementsJwt) {
-    refreshTimer = setInterval(refresh, Math.max(10, CONFIG.refreshSeconds) * 1000);
-  }
+  refreshTimer = setInterval(refresh, Math.max(10, CONFIG.refreshSeconds) * 1000);
 }
 
 async function refresh() {
-  let count = null;
-  // YouTube Data API is the primary source for YouTube streamers
-  if (count == null) count = await fetchYouTubeSubs();
-  // SE JWT works for Twitch-linked SE accounts (won't return YT subs)
-  if (count == null && CONFIG.streamElementsJwt) count = await fetchStreamElementsSubs();
-  // Manual fallback
+  let count = await fetchYouTubeSubs();
   if (count == null && CONFIG.staticSubCount > 0) count = CONFIG.staticSubCount;
   if (count == null) { updateUI(0); return; }
   const fillPct = (count - CONFIG.startMilestone)
@@ -617,49 +554,7 @@ function initConsole() {
     });
   }
 
-  const seEl = document.getElementById('c-se-jwt');
-  if (seEl) {
-    seEl.value = CONFIG.streamElementsJwt;
-    let seDebounce;
-    // Wait 500 ms after the last keystroke / paste before attempting auth,
-    // so partially-typed tokens don't trigger a 401 and flash the badge red.
-    seEl.addEventListener('input', () => {
-      clearTimeout(seDebounce);
-      const val = seEl.value.trim();
-      setSeBadge(val ? 'loading' : 'auth-off');
-      seDebounce = setTimeout(() => {
-        CONFIG.streamElementsJwt = val;
-        saveConfig();
-        startRefreshTimer();
-        refresh();
-        connectSESocket();
-      }, 500);
-    });
-  }
-
-  document.getElementById('btnClearSE')?.addEventListener('click', () => {
-    CONFIG.streamElementsJwt = '';
-    saveConfig();
-    if (seEl) seEl.value = '';
-    setSeBadge('auth-off');
-    startRefreshTimer();
-    refresh();
-    connectSESocket();
-  });
-
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
-
-  document.getElementById('btnSeDebug')?.addEventListener('click', async () => {
-    const row = document.getElementById('seDebugRow');
-    const out  = document.getElementById('seDebugOut');
-    row.style.display = row.style.display === 'none' ? '' : 'none';
-    if (row.style.display !== 'none') {
-      if (!lastSeResponse && CONFIG.streamElementsJwt) await fetchStreamElementsSubs();
-      out.value = lastSeResponse
-        ? JSON.stringify(lastSeResponse, null, 2)
-        : '(no response yet — make sure JWT is entered and connected)';
-    }
-  });
 
   document.getElementById('btnTestCombo')?.addEventListener('click', () => addToCombo(1));
 
@@ -674,8 +569,6 @@ function initConsole() {
     showNotif(testMessages[testIdx % testMessages.length]);
     testIdx++;
   });
-
-  if (CONFIG.streamElementsJwt) setSeBadge('auth-on');
 }
 
 // ── Notification queue ───────────────────────────────────────────
@@ -732,59 +625,12 @@ function resetCombo() {
   if (el) el.classList.remove('visible', 'hot', 'fire', 'bump');
 }
 
-// ── SE realtime socket ───────────────────────────────────────────
-let seSocket = null;
-
-function connectSESocket() {
-  if (seSocket) { seSocket.disconnect(); seSocket = null; }
-  if (!CONFIG.streamElementsJwt) return;
-
-  function _connect() {
-    seSocket = window.io('https://realtime.streamelements.com', { transports: ['websocket'] });
-
-    seSocket.on('connect', () => {
-      seSocket.emit('authenticate', { method: 'jwt', token: CONFIG.streamElementsJwt });
-    });
-
-    seSocket.on('event', ({ type, data: d = {} }) => {
-      if (type === 'subscriber') {
-        if (d.gifted && d.sender) {
-          showNotif(`${d.sender} gifted a membership to ${d.username}!`);
-        } else if (d.amount > 1) {
-          showNotif(`${d.username} has been a member for ${d.amount} months!`);
-        } else {
-          showNotif(`${d.username} has just joined as a member!`);
-        }
-        addToCombo(1);
-      } else if (type === 'communityGiftPurchase') {
-        showNotif(`${d.username} gifted ${d.amount} memberships to the community!`);
-        addToCombo(d.amount || 1);
-      }
-    });
-
-    // also fire on test events from SE overlay editor
-    seSocket.on('event:test', ({ type, data: d = {} }) => {
-      seSocket.emit('event', { type, data: d });
-    });
-  }
-
-  if (window.io) {
-    _connect();
-  } else {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js';
-    s.onload = _connect;
-    document.head.appendChild(s);
-  }
-}
-
 // ── Boot ─────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   loadSaved();
   initConsole();
   refresh();
   startRefreshTimer();
-  connectSESocket();
 });
 </script>
 </body>
