@@ -73,7 +73,7 @@ In OBS, alt-drag the **bottom edge** of the browser source upward to crop out th
 | `nextMilestone` | `35000` | Next milestone label |
 | `youtubeApiKey` | `''` | YouTube Data API key (free) — primary count source |
 | `youtubeChannelId` | `''` | YouTube channel ID (UCxxxxxxx) |
-| `refreshSeconds` | `60` | Auto-refresh interval |
+| `refreshSeconds` | `600` | Auto-refresh interval (seconds) |
 | `staticSubCount` | `0` | Manual override if APIs unavailable |
 <!-- CONFIG_TABLE_END -->
 

@@ -417,7 +417,7 @@ const DEFAULTS = {
   nextMilestone:   35000,         // Next milestone label
   youtubeApiKey:   '',            // YouTube Data API key (free) — primary count source
   youtubeChannelId: '',           // YouTube channel ID (UCxxxxxxx)
-  refreshSeconds:  60,            // Auto-refresh interval
+  refreshSeconds:  600,           // Auto-refresh interval (seconds)
   staticSubCount:  0,             // Manual override if APIs unavailable
 };
 
@@ -460,20 +460,33 @@ async function fetchYouTubeSubs() {
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
-// Loader.webm is a progress animation (empty at t=0, full at t=end).
-// We seek to (pct/100)*duration so the correct frame is shown.
-// To force OBS Chromium to paint the paused frame we: seek →
-// wait for 'seeked' (frame decoded) → play().then(pause).
+// On each refresh: play Loader.webm from the start to the frame that
+// matches the current fill %, then pause there.
 function seekLoader(pct) {
   const video = document.getElementById('barLoader');
   if (!video) return;
   const apply = () => {
     if (!isFinite(video.duration) || video.duration <= 0) return;
-    const t = Math.max(0, Math.min(1, pct / 100)) * video.duration;
-    video.currentTime = t;
-    video.addEventListener('seeked', () => {
-      video.play().then(() => video.pause()).catch(() => {});
-    }, { once: true });
+    const target = Math.max(0, Math.min(1, pct / 100)) * video.duration;
+
+    // Cancel any in-progress playback from a previous call
+    if (video._stopHandler) {
+      video.removeEventListener('timeupdate', video._stopHandler);
+      video._stopHandler = null;
+    }
+
+    // Watch currentTime and pause the instant we reach the target
+    video._stopHandler = function () {
+      if (video.currentTime >= target) {
+        video.pause();
+        video.removeEventListener('timeupdate', video._stopHandler);
+        video._stopHandler = null;
+      }
+    };
+
+    video.currentTime = 0;
+    video.addEventListener('timeupdate', video._stopHandler);
+    video.play().catch(() => {});
   };
   if (video.readyState >= 2) apply();
   else video.addEventListener('loadeddata', apply, { once: true });
