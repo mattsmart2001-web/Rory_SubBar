@@ -722,14 +722,14 @@ function resetCombo() {
 // ── StreamElements real-time WebSocket ───────────────────────────
 let seSocket = null;
 
+function setSocketStatus(cls, txt) {
+  const el = document.getElementById('se-status');
+  if (el) { el.className = 'status ' + cls; el.textContent = '● ' + txt; }
+}
+
 function connectSESocket() {
   if (seSocket) { seSocket.disconnect(); seSocket = null; }
-  if (!CONFIG.seJwt) return;
-
-  const setStatus = (cls, txt) => {
-    const el = document.getElementById('se-status');
-    if (el) { el.className = 'status ' + cls; el.textContent = '● ' + txt; }
-  };
+  if (!CONFIG.seJwt) { setSocketStatus('auth-off', 'no JWT'); return; }
 
   const handleEvent = (data) => {
     console.log('[SE event]', JSON.stringify(data));
@@ -765,25 +765,25 @@ function connectSESocket() {
   };
 
   const init = () => {
-    setStatus('loading', 'connecting…');
+    setSocketStatus('loading', 'connecting…');
     seSocket = window.io('https://realtime.streamelements.com', {
       transports: ['websocket']
     });
 
     seSocket.on('connect',    () => {
-      setStatus('loading', 'authenticating…');
+      setSocketStatus('loading', 'authenticating…');
       seSocket.emit('authenticate', { method: 'jwt', token: CONFIG.seJwt });
     });
-    seSocket.on('authenticated',  () => setStatus('live',  'connected'));
-    seSocket.on('unauthorized',   () => setStatus('error', 'bad JWT'));
-    seSocket.on('connect_error',  () => setStatus('error', 'error'));
+    seSocket.on('authenticated',  () => setSocketStatus('live',  'connected'));
+    seSocket.on('unauthorized',   () => setSocketStatus('error', 'bad JWT'));
+    seSocket.on('connect_error',  (e) => { console.error('[SE] connect error', e); setSocketStatus('error', 'connection failed'); });
 
     // Live events and SE emulate both fire on 'event' or 'event:test'
     seSocket.on('event',      handleEvent);
     seSocket.on('event:test', handleEvent);
 
     seSocket.on('disconnect', () => {
-      setStatus('auth-off', 'disconnected');
+      setSocketStatus('auth-off', 'disconnected');
       setTimeout(() => { if (CONFIG.seJwt) connectSESocket(); }, 10000);
     });
   };
@@ -792,8 +792,9 @@ function connectSESocket() {
     init();
   } else {
     const s = document.createElement('script');
-    s.src = 'https://cdn.streamelements.com/socket/socket.io.js';
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.5.0/socket.io.min.js';
     s.onload = init;
+    s.onerror = () => setSocketStatus('error', 'script load failed');
     document.head.appendChild(s);
   }
 }
@@ -802,6 +803,7 @@ function connectSESocket() {
 window.addEventListener('load', () => {
   loadSaved();
   initConsole();
+  setSocketStatus('auth-off', CONFIG.seJwt ? 'connecting…' : 'no JWT');
   refresh();
   startRefreshTimer();
   connectSESocket();
