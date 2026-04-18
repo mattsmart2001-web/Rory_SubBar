@@ -460,43 +460,39 @@ async function fetchYouTubeSubs() {
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
-// On each refresh: play Loader.webm from the start to the frame that
-// matches the current fill %, then pause there.
+// OBS Browser Source silently rejects video.play() in some builds, so
+// instead of relying on real playback we manually drive currentTime
+// from 0 → target over ~2 s with requestAnimationFrame. Works in both
+// Chrome and OBS because it doesn't touch the playback engine.
 function seekLoader(pct) {
   const video = document.getElementById('barLoader');
   if (!video) return;
-  const apply = () => {
+  const targetPct = Math.max(0, Math.min(1, pct / 100));
+
+  if (video._rafId) {
+    cancelAnimationFrame(video._rafId);
+    video._rafId = null;
+  }
+
+  const animate = () => {
     if (!isFinite(video.duration) || video.duration <= 0) return;
-    const target = Math.max(0, Math.min(1, pct / 100)) * video.duration;
-
-    // Cancel any in-progress playback from a previous call
-    if (video._stopHandler) {
-      video.removeEventListener('timeupdate', video._stopHandler);
-      video._stopHandler = null;
-    }
-
-    // Watch currentTime and pause the instant we reach the target
-    video._stopHandler = function () {
-      if (video.currentTime >= target) {
-        video.pause();
-        video.removeEventListener('timeupdate', video._stopHandler);
-        video._stopHandler = null;
-      }
-    };
-
-    // Reset to start, wait for the seek to complete, then play forward.
-    // Without waiting for 'seeked', play() can fire before currentTime
-    // has actually moved to 0 and the video just jumps to the target.
+    const stopAt = targetPct * video.duration;
     video.pause();
-    video.addEventListener('seeked', function startPlay() {
-      video.removeEventListener('seeked', startPlay);
-      video.addEventListener('timeupdate', video._stopHandler);
-      video.play().catch(() => {});
-    }, { once: true });
-    video.currentTime = 0;
+    if (stopAt <= 0) { video.currentTime = 0; return; }
+
+    const start       = performance.now();
+    const durationMs  = 2000;
+    const step = (now) => {
+      const progress = Math.min(1, (now - start) / durationMs);
+      video.currentTime = progress * stopAt;
+      if (progress < 1) video._rafId = requestAnimationFrame(step);
+      else              video._rafId = null;
+    };
+    video._rafId = requestAnimationFrame(step);
   };
-  if (video.readyState >= 2) apply();
-  else video.addEventListener('loadeddata', apply, { once: true });
+
+  if (video.readyState >= 2) animate();
+  else video.addEventListener('loadeddata', animate, { once: true });
 }
 
 function updateUI(fillPct) {
