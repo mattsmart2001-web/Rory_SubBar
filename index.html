@@ -56,6 +56,7 @@
       height: 100%;
       object-fit: fill;
       pointer-events: none;
+      clip-path: inset(0 100% 0 0); /* hidden until JS sets fill % */
     }
 
     /* ── Notification row ─────────────────── */
@@ -136,17 +137,21 @@
     }
     .combo-text.bump { animation: combo-bump 0.28s ease; }
 
+    .milestone-row {
+      position: relative;
+      width: 1280px;
+      height: 24px;
+    }
+
     .milestone {
       position: absolute;
-      top: 100%;
-      margin-top: 4px;
+      top: 4px;
       color: #fff;
       font-family: 'Third Rail', 'Arial Black', sans-serif;
       font-size: 20px;
       white-space: nowrap;
       text-shadow: 0 1px 4px rgba(0,0,0,0.7);
       pointer-events: none;
-      z-index: 2;
     }
 
     .milestone-start { left: 24px; }
@@ -331,9 +336,11 @@
 <!-- ── BAR ─────────────────────────────────────────────── -->
 <div class="bar-container">
   <img class="bar-bg" src="BG.png" alt="">
-  <video class="bar-loader" id="barLoader" muted playsinline preload="auto">
+  <video class="bar-loader" id="barLoader" autoplay muted loop playsinline preload="auto">
     <source src="Loader.webm" type="video/webm">
   </video>
+</div>
+<div class="milestone-row">
   <span class="milestone milestone-start" id="startLabel"></span>
   <span class="milestone milestone-end" id="endLabel"></span>
 </div>
@@ -477,23 +484,15 @@ async function fetchStreamElementsSubs() {
 }
 
 // ── Bar rendering ────────────────────────────────────────────────
-// Loader.webm contains the whole empty→full animation. We jump to the
-// frame that represents the current progress and freeze the video
-// there. A transparent webm paused in Chromium/OBS often stops
-// painting. Seek to the target frame then call play().then(pause) so
-// Chromium decodes and paints the frame before stopping.
+// Loader.webm is a looping fill animation (autoplay loop). We reveal
+// the correct portion using clip-path rather than seeking — seeking a
+// paused transparent webm is unreliable in Chromium/OBS, but
+// clip-path on a playing video is rock solid.
 function seekLoader(pct) {
   const video = document.getElementById('barLoader');
   if (!video) return;
-  const apply = () => {
-    if (!isFinite(video.duration) || video.duration <= 0) return;
-    video.currentTime = (pct / 100) * video.duration;
-    // play() forces Chromium to decode and paint the seeked frame;
-    // pause() immediately stops it there.
-    video.play().then(() => video.pause()).catch(() => {});
-  };
-  if (video.readyState >= 2) apply();
-  else video.addEventListener('loadeddata', apply, { once: true });
+  const right = (100 - Math.max(0, Math.min(100, pct))).toFixed(2);
+  video.style.clipPath = `inset(0 ${right}% 0 0)`;
 }
 
 function updateUI(fillPct) {
