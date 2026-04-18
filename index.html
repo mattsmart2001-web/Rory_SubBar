@@ -58,7 +58,7 @@
     .notif-row {
       width: 1280px;
       height: 38px;
-      margin-top: 18px;
+      margin-top: 2px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -448,10 +448,10 @@ function setSeBadge(state) {
 }
 
 // ── StreamElements fetch ──────────────────────────────────────────
-// Badge is driven by the HTTP response only (JWT valid vs not).
-// The sub count is returned separately; its absence doesn't mean
-// the JWT is bad — e.g. YouTube channels don't always populate
-// providerTotals['subscriber-total'].
+// Badge reflects the HTTP response only (JWT valid vs not).
+// SE's /channels/me uses Twitch-style keys in providerTotals; YouTube
+// channels may use different keys or omit the member total entirely,
+// so try a few candidates before giving up.
 async function fetchStreamElementsSubs() {
   if (!CONFIG.streamElementsJwt) return null;
   try {
@@ -461,7 +461,12 @@ async function fetchStreamElementsSubs() {
     if (!res.ok) { setSeBadge('auth-off'); return null; }
     setSeBadge('auth-on');
     const data = await res.json();
-    const count = data?.providerTotals?.['subscriber-total'];
+    const pt = data?.providerTotals || {};
+    const count = pt['subscriber-total']
+               ?? pt['member-total']
+               ?? pt['members']
+               ?? pt['subscribers']
+               ?? null;
     return count != null ? parseInt(count, 10) : null;
   } catch (e) {
     setSeBadge('auth-off');
@@ -487,14 +492,15 @@ function startRefreshTimer() {
 }
 
 async function refresh() {
-  let fillPct = 0;
-  if (CONFIG.streamElementsJwt) {
-    const count = await fetchStreamElementsSubs();
-    if (count !== null) {
-      fillPct = (count - CONFIG.startMilestone)
-              / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
-    }
-  }
+  let count = null;
+  if (CONFIG.streamElementsJwt) count = await fetchStreamElementsSubs();
+  // Fall back to the manual count when SE doesn't have a number for us
+  // (e.g. YouTube channels). This also prevents auto-refresh from wiping
+  // a static count the user just typed.
+  if (count == null && CONFIG.staticSubCount > 0) count = CONFIG.staticSubCount;
+  if (count == null) { updateUI(0); return; }
+  const fillPct = (count - CONFIG.startMilestone)
+                / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
   updateUI(fillPct);
 }
 
@@ -526,7 +532,7 @@ function initConsole() {
       const raw = staticSubEl.value.trim();
       CONFIG.staticSubCount = raw !== '' ? Number(raw) : 0;
       saveConfig();
-      updateStaticSubDisplay();
+      refresh();
     });
   }
 
@@ -595,15 +601,6 @@ function initConsole() {
   });
 
   if (CONFIG.streamElementsJwt) setSeBadge('auth-on');
-}
-
-// ── Static sub display ───────────────────────────────────────────
-function updateStaticSubDisplay() {
-  const count = CONFIG.staticSubCount;
-  if (!count) return;
-  const fillPct = (count - CONFIG.startMilestone)
-                / (CONFIG.endMilestone - CONFIG.startMilestone) * 100;
-  updateUI(fillPct);
 }
 
 // ── Notification queue ───────────────────────────────────────────
@@ -710,7 +707,6 @@ function connectSESocket() {
 window.addEventListener('load', () => {
   loadSaved();
   initConsole();
-  updateStaticSubDisplay();
   refresh();
   startRefreshTimer();
   connectSESocket();
