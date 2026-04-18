@@ -756,7 +756,7 @@ function connectSESocket() {
         showNotif(`${name} sent a Super Chat${d.message ? ': ' + d.message : ''}!`);
         break;
       case 'tip':
-        showNotif(`${name} tipped${d.amount ? ' £' + d.amount : ''}!`);
+        showNotif(`${name} donated${d.amount ? ' £' + d.amount : ''}!`);
         break;
       default:
         // Unknown event type — still log so we can see the raw shape
@@ -847,7 +847,7 @@ window.addEventListener('onEventReceived', (obj) => {
 
     // Tip / donation
     case 'tip-latest':
-      showNotif(`${name} tipped ${e.amount ? '£' + e.amount : ''}!`);
+      showNotif(`${name} donated ${e.amount ? '£' + e.amount : ''}!`);
       break;
 
     default:
