@@ -554,7 +554,11 @@ let refreshTimer = null;
 
 function startRefreshTimer() {
   if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(refresh, Math.max(10, CONFIG.refreshSeconds) * 1000);
+  // Hard floor of 600 s (10 min) regardless of saved config — the
+  // loader webm animates on every refresh so more frequent updates
+  // become visually distracting.
+  const seconds = Math.max(600, CONFIG.refreshSeconds || 0);
+  refreshTimer = setInterval(refresh, seconds * 1000);
 }
 
 async function refresh() {
