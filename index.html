@@ -48,15 +48,26 @@
       height: auto;
     }
 
+    /* Wrapper clips the video from the right; width% = fill amount.
+       overflow:hidden on a div is reliable in all Chromium versions —
+       clip-path on <video> is not. */
+    .bar-loader-wrap {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 0%;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
     .bar-loader {
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
+      width: 1280px; /* fixed full-bar width so wrapper clips, not squishes */
       height: 100%;
       object-fit: fill;
-      pointer-events: none;
-      clip-path: inset(0 100% 0 0); /* hidden until JS sets fill % */
     }
 
     /* ── Notification row ─────────────────── */
@@ -137,21 +148,18 @@
     }
     .combo-text.bump { animation: combo-bump 0.28s ease; }
 
-    .milestone-row {
-      position: relative;
-      width: 1280px;
-      height: 24px;
-    }
-
+    /* BG.png bar strip ends at ~117px at 1280px display width.
+       Milestones sit 5px below that, inside bar-container. */
     .milestone {
       position: absolute;
-      top: 4px;
+      top: 122px;
       color: #fff;
       font-family: 'Third Rail', 'Arial Black', sans-serif;
       font-size: 20px;
       white-space: nowrap;
       text-shadow: 0 1px 4px rgba(0,0,0,0.7);
       pointer-events: none;
+      z-index: 3;
     }
 
     .milestone-start { left: 24px; }
@@ -336,11 +344,11 @@
 <!-- ── BAR ─────────────────────────────────────────────── -->
 <div class="bar-container">
   <img class="bar-bg" src="BG.png" alt="">
-  <video class="bar-loader" id="barLoader" autoplay muted loop playsinline preload="auto">
-    <source src="Loader.webm" type="video/webm">
-  </video>
-</div>
-<div class="milestone-row">
+  <div class="bar-loader-wrap" id="barLoaderWrap">
+    <video class="bar-loader" id="barLoader" autoplay muted loop playsinline preload="auto">
+      <source src="Loader.webm" type="video/webm">
+    </video>
+  </div>
   <span class="milestone milestone-start" id="startLabel"></span>
   <span class="milestone milestone-end" id="endLabel"></span>
 </div>
@@ -485,14 +493,13 @@ async function fetchStreamElementsSubs() {
 
 // ── Bar rendering ────────────────────────────────────────────────
 // Loader.webm is a looping fill animation (autoplay loop). We reveal
-// the correct portion using clip-path rather than seeking — seeking a
-// paused transparent webm is unreliable in Chromium/OBS, but
-// clip-path on a playing video is rock solid.
+// the correct portion by setting the wrapper div width. overflow:hidden
+// on a div is reliable in all Chromium versions; clip-path on <video>
+// is not supported in OBS's embedded browser.
 function seekLoader(pct) {
-  const video = document.getElementById('barLoader');
-  if (!video) return;
-  const right = (100 - Math.max(0, Math.min(100, pct))).toFixed(2);
-  video.style.clipPath = `inset(0 ${right}% 0 0)`;
+  const wrap = document.getElementById('barLoaderWrap');
+  if (!wrap) return;
+  wrap.style.width = Math.max(0, Math.min(100, pct)).toFixed(2) + '%';
 }
 
 function updateUI(fillPct) {
