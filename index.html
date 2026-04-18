@@ -653,7 +653,7 @@ function initConsole() {
   document.getElementById('btnTestCombo')?.addEventListener('click', () => addToCombo(1));
 
   const testMessages = [
-    'RoryPlays has just joined as a member!',
+    'RoryPlays has just subscribed!',
     'xXSniper99Xx has been a member for 6 months!',
     'GiftKing gifted a membership to LuckyViewer!',
     'MegaFan gifted 5 memberships to the community!',
@@ -744,7 +744,7 @@ function connectSESocket() {
           showNotif(`${d.gifter || 'Someone'} gifted a membership to ${name}!`);
         } else {
           const months = d.months > 1 ? ` (${d.months} months!)` : '';
-          showNotif(`${name} just joined as a member!${months}`);
+          showNotif(`${name} just subscribed!${months}`);
         }
         addToCombo(1);
         break;
@@ -828,7 +828,7 @@ window.addEventListener('onEventReceived', (obj) => {
         showNotif(`${e.gifter || 'Someone'} gifted a membership to ${name}!`);
       } else {
         const months = e.months > 1 ? ` (${e.months} months!)` : '';
-        showNotif(`${name} just joined as a member!${months}`);
+        showNotif(`${name} just subscribed!${months}`);
       }
       addToCombo(1);
       break;
