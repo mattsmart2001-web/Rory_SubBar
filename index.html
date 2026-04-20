@@ -417,6 +417,7 @@
       <label>​</label>
       <div class="console-actions">
         <button class="btn-action" id="btnRefresh">↻ Refresh</button>
+        <button class="btn-action" id="btnDebug">🔍 Debug Loader</button>
       </div>
     </div>
 
@@ -649,6 +650,22 @@ function initConsole() {
   }
 
   document.getElementById('btnRefresh')?.addEventListener('click', refresh);
+
+  document.getElementById('btnDebug')?.addEventListener('click', () => {
+    const video  = document.getElementById('barLoader');
+    const canvas = document.getElementById('barCanvas');
+    const info = [
+      `readyState: ${video.readyState} (0=nothing,1=meta,2=cur,3=future,4=enough)`,
+      `duration: ${video.duration}`,
+      `videoWidth x videoHeight: ${video.videoWidth} x ${video.videoHeight}`,
+      `currentTime: ${video.currentTime}`,
+      `canvas: ${canvas.width} x ${canvas.height}`,
+      `networkState: ${video.networkState} (0=empty,1=idle,2=loading,3=no-source)`,
+      `error: ${video.error ? video.error.message : 'none'}`,
+      `fillPct config: start=${CONFIG.startMilestone} end=${CONFIG.endMilestone} static=${CONFIG.staticSubCount}`,
+    ];
+    alert(info.join('\n'));
+  });
 
   document.getElementById('btnTestCombo')?.addEventListener('click', () => addToCombo(1));
 
